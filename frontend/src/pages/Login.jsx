@@ -121,9 +121,6 @@ export default function Login() {
             </button>
           </form>
 
-          <p className="text-center text-xs text-gray-400 dark:text-slate-500 mt-6">
-            Por defecto: <span className="font-semibold text-kinder-blue">admin</span> / <span className="font-semibold text-kinder-blue">admin123</span>
-          </p>
         </div>
 
         <p className="text-center text-xs text-gray-400 dark:text-slate-600 mt-6">

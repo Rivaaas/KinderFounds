@@ -1,4 +1,4 @@
-// Servidor de desarrollo: usa MongoDB en memoria si no hay MONGODB_URI en .env
+// Servidor de desarrollo local: usa MongoDB en memoria si no hay MONGODB_URI
 require('dotenv').config();
 
 const startServer = async () => {
@@ -6,33 +6,31 @@ const startServer = async () => {
     console.log('⚙️  Sin MONGODB_URI — iniciando MongoDB en memoria...');
     const { MongoMemoryServer } = require('mongodb-memory-server');
     const mongod = await MongoMemoryServer.create();
-    const uri = mongod.getUri() + 'kindercash';
-    process.env.MONGODB_URI = uri;
+    const uri = process.env.MONGODB_URI = mongod.getUri() + 'kinderfounds';
     console.log('✅ MongoDB en memoria lista');
 
-    // Sembrar usuarios automáticamente
     const mongoose = require('mongoose');
     const bcrypt   = require('bcryptjs');
     await mongoose.connect(uri);
     const User = require('./src/models/User');
 
-    const users = [
-      { username: 'admin', password: 'admin123', name: 'Administrador', role: 'admin' },
-      { username: 'user',  password: 'admin',    name: 'Tesorero',       role: 'admin' },
-    ];
+    const adminUser = process.env.ADMIN_USER     || 'admin';
+    const adminPass = process.env.ADMIN_PASSWORD || 'admin';
 
-    for (const u of users) {
-      const exists = await User.findOne({ username: u.username });
-      if (!exists) {
-        await User.create({ ...u, password: await bcrypt.hash(u.password, 10) });
-        console.log(`✅ Usuario creado: ${u.username} / ${u.password}`);
-      }
+    const exists = await User.findOne({ username: adminUser });
+    if (!exists) {
+      await User.create({
+        username: adminUser,
+        password: await bcrypt.hash(adminPass, 10),
+        name: 'Administrador',
+        role: 'admin',
+      });
+      console.log(`✅ Usuario creado desde variables de entorno.`);
     }
 
     await mongoose.disconnect();
   }
 
-  // Importar servidor principal (reconecta a MONGODB_URI)
   require('./server.js');
 };
 
