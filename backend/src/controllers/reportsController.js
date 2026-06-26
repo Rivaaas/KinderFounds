@@ -1,0 +1,91 @@
+const Payment  = require('../models/Payment');
+const Expense  = require('../models/Expense');
+const Student  = require('../models/Student');
+const Activity = require('../models/Activity');
+const PettyCash = require('../models/PettyCash');
+
+exports.getGeneral = async (req, res) => {
+  const { from, to } = req.query;
+  const dateFilter = {};
+  if (from || to) {
+    dateFilter.date = {};
+    if (from) dateFilter.date.$gte = new Date(from);
+    if (to)   dateFilter.date.$lte = new Date(to);
+  }
+
+  const [payments, expenses] = await Promise.all([
+    Payment.find({ ...dateFilter, status: 'paid' }).populate('student', 'name').populate('activity', 'name'),
+    Expense.find(dateFilter).populate('activity', 'name'),
+  ]);
+
+  const totalIncome  = payments.reduce((s, p) => s + p.amount, 0);
+  const totalExpense = expenses.reduce((s, e) => s + e.amount, 0);
+
+  res.json({ payments, expenses, totalIncome, totalExpense, balance: totalIncome - totalExpense });
+};
+
+exports.getByStudent = async (req, res) => {
+  const { studentId } = req.params;
+  const student = await Student.findById(studentId);
+  if (!student) return res.status(404).json({ message: 'Estudiante no encontrado.' });
+
+  const payments = await Payment.find({ student: studentId }).sort({ date: -1 });
+  const totalPaid    = payments.filter((p) => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
+  const totalPending = payments.filter((p) => p.status === 'pending').reduce((s, p) => s + p.amount, 0);
+
+  res.json({ student, payments, totalPaid, totalPending });
+};
+
+exports.getByMonth = async (req, res) => {
+  const { month } = req.params;
+  const payments = await Payment.find({ month }).populate('student', 'name guardianName guardianPhone');
+
+  const paid    = payments.filter((p) => p.status === 'paid');
+  const pending = payments.filter((p) => p.status === 'pending');
+
+  res.json({
+    month,
+    payments,
+    totalExpected: payments.reduce((s, p) => s + p.amount, 0),
+    totalPaid:     paid.reduce((s, p) => s + p.amount, 0),
+    totalPending:  pending.reduce((s, p) => s + p.amount, 0),
+    paid,
+    pending,
+  });
+};
+
+exports.getByActivity = async (req, res) => {
+  const { activityId } = req.params;
+  const activity = await Activity.findById(activityId);
+  if (!activity) return res.status(404).json({ message: 'Actividad no encontrada.' });
+
+  const [income, expenses] = await Promise.all([
+    Payment.find({ activity: activityId, status: 'paid' }).populate('student', 'name'),
+    Expense.find({ activity: activityId }),
+  ]);
+
+  res.json({
+    activity,
+    income,
+    expenses,
+    totalIncome:  income.reduce((s, p) => s + p.amount, 0),
+    totalExpense: expenses.reduce((s, e) => s + e.amount, 0),
+    balance:      income.reduce((s, p) => s + p.amount, 0) - expenses.reduce((s, e) => s + e.amount, 0),
+  });
+};
+
+exports.getPettyCash = async (req, res) => {
+  const { from, to } = req.query;
+  const filter = {};
+  if (from || to) {
+    filter.date = {};
+    if (from) filter.date.$gte = new Date(from);
+    if (to)   filter.date.$lte = new Date(to);
+  }
+
+  const movements = await PettyCash.find(filter).sort({ date: -1 });
+  const totalIncome  = movements.filter((m) => m.type === 'income').reduce((s, m) => s + m.amount, 0);
+  const totalExpense = movements.filter((m) => m.type === 'expense').reduce((s, m) => s + m.amount, 0);
+
+  res.json({ movements, totalIncome, totalExpense, balance: totalIncome - totalExpense });
+};

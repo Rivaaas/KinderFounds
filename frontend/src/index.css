@@ -1,0 +1,164 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   BASE
+   ============================================================ */
+@layer base {
+  html { @apply antialiased; }
+
+  body {
+    @apply bg-kinder-sky text-gray-800 dark:bg-kinder-dark dark:text-slate-100;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+}
+
+/* ============================================================
+   COMPONENTS
+   ============================================================ */
+@layer components {
+
+  /* Cards */
+  .glass {
+    @apply bg-white border border-gray-100 rounded-2xl shadow-card
+           dark:bg-kinder-card dark:border-kinder-border dark:shadow-card-dark;
+  }
+  .glass-hover {
+    @apply glass hover:shadow-md hover:-translate-y-0.5 transition-all duration-200;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply bg-kinder-yellow text-gray-800 font-semibold py-2 px-4 rounded-xl
+           hover:brightness-105 transition-all duration-200 active:scale-95 shadow-sm;
+  }
+  .btn-blue {
+    @apply bg-kinder-blue text-white font-semibold py-2 px-4 rounded-xl
+           hover:bg-blue-400 transition-all duration-200 active:scale-95 shadow-sm;
+  }
+  .btn-danger {
+    @apply bg-kinder-coral text-white font-semibold py-2 px-4 rounded-xl
+           hover:brightness-110 transition-all duration-200 active:scale-95;
+  }
+  .btn-ghost {
+    @apply text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium py-2 px-4 rounded-xl
+           transition-all duration-200
+           dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700;
+  }
+
+  /* Inputs */
+  .input-field {
+    @apply w-full bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-400
+           rounded-xl px-4 py-2.5 focus:outline-none focus:border-kinder-blue focus:bg-white
+           focus:ring-2 focus:ring-kinder-blue/20 transition-all duration-200
+           dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:placeholder-slate-400
+           dark:focus:border-kinder-blue dark:focus:bg-slate-600;
+  }
+  .select-field {
+    @apply input-field cursor-pointer;
+  }
+
+  /* Badges */
+  .badge-paid {
+    @apply px-2.5 py-0.5 rounded-full text-xs font-semibold
+           bg-green-100 text-green-700
+           dark:bg-green-500/20 dark:text-green-400;
+  }
+  .badge-pending {
+    @apply px-2.5 py-0.5 rounded-full text-xs font-semibold
+           bg-amber-100 text-amber-700
+           dark:bg-yellow-500/20 dark:text-yellow-400;
+  }
+  .badge-cancelled {
+    @apply px-2.5 py-0.5 rounded-full text-xs font-semibold
+           bg-red-100 text-red-600
+           dark:bg-red-500/20 dark:text-red-400;
+  }
+}
+
+/* ============================================================
+   LIGHT MODE — Global overrides for pages that use
+   the old dark-theme utility classes
+   ============================================================ */
+
+/* --- Text --- */
+html:not(.dark) .text-white     { color: #1F2937; }
+html:not(.dark) .text-white\/90 { color: #1F2937; }
+html:not(.dark) .text-white\/80 { color: #374151; }
+html:not(.dark) .text-white\/70 { color: #4B5563; }
+html:not(.dark) .text-white\/60 { color: #6B7280; }
+html:not(.dark) .text-white\/50 { color: #6B7280; }
+html:not(.dark) .text-white\/40 { color: #9CA3AF; }
+html:not(.dark) .text-white\/30 { color: #9CA3AF; }
+html:not(.dark) .hover\:text-white:hover { color: #1F2937; }
+
+/* --- Backgrounds --- */
+html:not(.dark) .bg-white\/5  { background-color: #F9FAFB; }
+html:not(.dark) .bg-white\/10 { background-color: #F3F4F6; }
+html:not(.dark) .bg-white\/20 { background-color: #E9ECEF; }
+html:not(.dark) .hover\:bg-white\/5:hover  { background-color: #F3F4F6; }
+html:not(.dark) .hover\:bg-white\/10:hover { background-color: #E5E7EB; }
+html:not(.dark) .active\:bg-white\/20:active { background-color: #D1D5DB; }
+
+/* --- Borders --- */
+html:not(.dark) .border-white\/10 { border-color: #E5E7EB; }
+html:not(.dark) .border-white\/20 { border-color: #D1D5DB; }
+html:not(.dark) .border-white\/30 { border-color: #D1D5DB; }
+
+/* --- Dark gradients → subtle light equivalents --- */
+html:not(.dark) .from-purple-900\/20 { --tw-gradient-from: rgba(79, 157, 255, 0.07); }
+html:not(.dark) .to-cyan-900\/20     { --tw-gradient-to:   rgba(107, 203, 119, 0.07); }
+html:not(.dark) .from-purple-900\/30 { --tw-gradient-from: rgba(179, 136, 255, 0.08); }
+html:not(.dark) .to-purple-900\/30   { --tw-gradient-to:   rgba(79, 157, 255, 0.08); }
+html:not(.dark) .from-pink-900\/30   { --tw-gradient-from: rgba(179, 136, 255, 0.08); }
+html:not(.dark) .to-purple-900\/10   { --tw-gradient-to:   rgba(79, 157, 255, 0.04); }
+html:not(.dark) .from-rose-900\/30   { --tw-gradient-from: rgba(255, 107, 107, 0.07); }
+html:not(.dark) .from-rose-900\/20   { --tw-gradient-from: rgba(255, 107, 107, 0.05); }
+html:not(.dark) .from-rose-600\/30   { --tw-gradient-from: rgba(255, 107, 107, 0.12); }
+html:not(.dark) .from-green-600\/30  { --tw-gradient-from: rgba(107, 203, 119, 0.12); }
+html:not(.dark) .from-cyan-600\/30   { --tw-gradient-from: rgba(79, 157, 255, 0.12); }
+html:not(.dark) .from-yellow-600\/30 { --tw-gradient-from: rgba(255, 217, 61, 0.15); }
+html:not(.dark) .from-pink-600\/30   { --tw-gradient-from: rgba(179, 136, 255, 0.12); }
+html:not(.dark) .from-indigo-600\/30 { --tw-gradient-from: rgba(79, 157, 255, 0.12); }
+html:not(.dark) .from-orange-600\/30 { --tw-gradient-from: rgba(255, 107, 107, 0.12); }
+
+/* --- Gradient borders/text in StatCard --- */
+html:not(.dark) .border-purple-500\/30 { border-color: rgba(179,136,255,0.3); }
+html:not(.dark) .border-cyan-500\/30   { border-color: rgba(79,157,255,0.3); }
+html:not(.dark) .border-green-500\/30  { border-color: rgba(107,203,119,0.3); }
+html:not(.dark) .border-rose-500\/30   { border-color: rgba(255,107,107,0.3); }
+html:not(.dark) .border-pink-500\/30   { border-color: rgba(236,72,153,0.3); }
+html:not(.dark) .border-yellow-500\/30 { border-color: rgba(234,179,8,0.3); }
+html:not(.dark) .border-amber-500\/20  { border-color: rgba(245,158,11,0.2); }
+
+/* --- Tooltip (recharts) --- */
+html:not(.dark) .recharts-tooltip-wrapper .glass {
+  background: white !important;
+  border: 1px solid #E5E7EB !important;
+}
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background-color: rgba(0,0,0,0.12);
+  border-radius: 99px;
+}
+.dark ::-webkit-scrollbar-thumb { background-color: rgba(255,255,255,0.15); }
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn { animation: fadeIn 0.25s ease-out; }
+
+/* shadow-glow compat */
+.shadow-glow { box-shadow: 0 0 20px rgba(79, 157, 255, 0.35); }
