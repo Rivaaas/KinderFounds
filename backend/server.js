@@ -17,6 +17,16 @@ const discountRoutes   = require('./src/routes/discounts');
 const userRoutes       = require('./src/routes/users');
 const publicRoutes     = require('./src/routes/public');
 
+// Sin secreto no se pueden firmar ni verificar sesiones. Antes el proceso
+// arrancaba igual y fallaba recién en el primer login, con un error confuso.
+if (!process.env.JWT_SECRET) {
+  console.error('❌ Falta JWT_SECRET. Define la variable de entorno antes de arrancar el servidor.');
+  process.exit(1);
+}
+if (process.env.JWT_SECRET.length < 32) {
+  console.warn('⚠️  JWT_SECRET es corto: usa al menos 32 caracteres aleatorios.');
+}
+
 connectDB();
 
 const app = express();

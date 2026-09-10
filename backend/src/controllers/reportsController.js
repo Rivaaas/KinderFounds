@@ -38,7 +38,10 @@ exports.getByStudent = async (req, res) => {
 
 exports.getByMonth = async (req, res) => {
   const { month } = req.params;
-  const payments = await Payment.find({ month }).populate('student', 'name guardianName guardianPhone');
+  // Solo el nombre: pedir campos que el modelo no tiene invita a agregarlos sin
+  // pensar quién los verá, y este reporte lo consultan también perfiles de solo
+  // lectura que pueden estar en manos de terceros.
+  const payments = await Payment.find({ month }).populate('student', 'name');
 
   const paid    = payments.filter((p) => p.status === 'paid');
   const pending = payments.filter((p) => p.status === 'pending');

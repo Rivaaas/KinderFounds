@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import toast from 'react-hot-toast';
 import { Lock, User, Eye, EyeOff, Sun, Moon, ArrowLeft } from 'lucide-react';
+import Footer from '../components/Layout/Footer';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -131,9 +132,7 @@ export default function Login() {
           <ArrowLeft size={14} /> Volver a la consulta de estudiantes
         </Link>
 
-        <p className="text-center text-xs text-gray-400 dark:text-slate-600 mt-4">
-          KINDERFOUNDS © {new Date().getFullYear()}
-        </p>
+        <Footer className="mt-6" />
       </div>
     </div>
   );

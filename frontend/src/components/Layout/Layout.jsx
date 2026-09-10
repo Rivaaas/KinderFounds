@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header  from './Header';
+import Footer  from './Footer';
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -16,6 +17,7 @@ export default function Layout() {
           <div className="animate-fadeIn max-w-7xl mx-auto">
             <Outlet />
           </div>
+          <Footer className="max-w-7xl mx-auto mt-8 pt-6 border-t border-gray-100 dark:border-kinder-border" />
         </main>
       </div>
     </div>

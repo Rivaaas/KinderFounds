@@ -28,7 +28,7 @@ exports.getAll = async (req, res) => {
 // El saldo inicial es el único número que se guarda; el saldo disponible siempre
 // se recalcula a partir de él más los movimientos, para que no puedan divergir.
 exports.getInitialBalance = async (req, res) => {
-  const config = await Settings.obtener();
+  const config = await Settings.leer();
   res.json({ initialBalance: config.pettyCashInitialBalance || 0 });
 };
 

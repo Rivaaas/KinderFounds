@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, X, Lock, Sun, Moon, Loader2, PiggyBank, Wallet, BarChart3 } from 'lucide-react';
 import { publicApi } from '../services/api';
+import Footer from '../components/Layout/Footer';
 import { useTheme } from '../context/ThemeContext';
 import { formatCLP } from '../utils/formatters';
 
@@ -418,9 +419,10 @@ export default function Consulta() {
           </div>
         )}
 
-        <footer className="mt-16 text-center text-xs text-gray-400 dark:text-slate-600">
+        <div className="mt-16 text-center text-xs text-gray-400 dark:text-slate-600">
           Si un monto no coincide con lo que pagaste, avisa al tesorero del curso.
-        </footer>
+        </div>
+        <Footer className="mt-6 pt-6 border-t border-gray-200/60 dark:border-kinder-border" />
       </div>
     </div>
   );

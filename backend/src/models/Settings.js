@@ -17,7 +17,22 @@ const settingsSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
-// Devuelve la configuración creándola con valores por defecto la primera vez.
+const PREDETERMINADOS = { key: 'general', pettyCashInitialBalance: 0 };
+
+// Lectura sin efectos secundarios: si el documento no existe devuelve los valores
+// por defecto en memoria, sin crearlo.
+//
+// Es lo que usan el dashboard, los reportes y la caja chica, que son endpoints
+// GET alcanzables por un perfil de solo lectura. Un GET que escribe en la base
+// contradice la promesa del rol y rompería con un usuario de base de datos sin
+// permisos de escritura.
+settingsSchema.statics.leer = async function () {
+  const doc = await this.findOne({ key: 'general' }).lean();
+  return doc || { ...PREDETERMINADOS };
+};
+
+// Devuelve la configuración creándola la primera vez. Solo para el camino de
+// escritura, que ya exige perfil de administrador.
 settingsSchema.statics.obtener = function () {
   return this.findOneAndUpdate(
     { key: 'general' },

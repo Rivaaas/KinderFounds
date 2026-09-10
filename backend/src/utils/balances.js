@@ -25,7 +25,8 @@ const sum = (rows) => rows.reduce((s, r) => s + (r.amount || 0), 0);
 // `editable` marca las que se pueden modificar desde Caja Chica (el resto se edita
 // en su pantalla de origen) y `balanceAfter` es el saldo resultante tras aplicarla.
 const getPettyCashLedger = async (range) => {
-  const config = await Settings.obtener();
+  // Lectura pura: este cálculo lo dispara un GET y no debe escribir nada.
+  const config = await Settings.leer();
   const initialBalance = config.pettyCashInitialBalance || 0;
 
   // Se leen SIEMPRE todos los movimientos, aunque se pida un rango: el saldo

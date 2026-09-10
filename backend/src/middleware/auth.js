@@ -13,7 +13,9 @@ const protect = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Se fija el algoritmo esperado: sin esto, la verificación acepta cualquiera
+    // de los que el token declare, y la cabecera del token la controla el cliente.
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
     req.user = await User.findById(decoded.id).select('-password');
     if (!req.user) return res.status(401).json({ message: 'Usuario no encontrado.' });
     if (req.user.active === false)
