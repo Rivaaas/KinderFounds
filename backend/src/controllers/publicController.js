@@ -6,7 +6,12 @@ const { isValidId } = require('../utils/validation');
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-const MIN_BUSQUEDA = 2;
+// Tres caracteres y coincidencia por prefijo de palabra. Con dos caracteres y
+// coincidencia por subcadena bastaba barrer combinaciones cortas para
+// reconstruir el curso completo: una auditoría recuperó el padrón entero con 26
+// consultas. Esto encarece el barrido, no lo hace imposible; la protección
+// definitiva es exigir un segundo dato que solo la familia conozca.
+const MIN_BUSQUEDA = 3;
 const MAX_RESULTADOS = 10;
 
 // Quita tildes y pasa a minúsculas para que "gonzalez" encuentre "GONZÁLEZ".
@@ -55,9 +60,12 @@ exports.searchStudents = async (req, res) => {
   const termino = normalizar(q);
   const partes  = termino.split(/\s+/).filter(Boolean);
 
+  // Solo prefijo de alguna palabra del nombre: "gonzalez" encuentra a
+  // "BENJAMÍN GONZÁLEZ", pero "nza" ya no. La variante con subcadena convertía
+  // el buscador en un listado del curso.
   const coincide = (nombre) => {
-    const n = normalizar(nombre);
-    return partes.every((p) => n.split(/\s+/).some((palabra) => palabra.startsWith(p)) || n.includes(p));
+    const palabras = normalizar(nombre).split(/\s+/);
+    return partes.every((p) => palabras.some((palabra) => palabra.startsWith(p)));
   };
 
   const results = alumnos

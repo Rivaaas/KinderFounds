@@ -51,8 +51,9 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Saldo General" value={formatCLP(balance.general)} icon={Wallet} color="purple"
-          sub="Ingresos - Gastos" />
+        {/* Dinero total disponible: los dos fondos juntos, no solo el general. */}
+        <StatCard label="Saldo General" value={formatCLP(balance.total ?? (balance.general + balance.pettyCash))} icon={Wallet} color="purple"
+          sub="Cuotas + Caja Chica - Gastos" />
         <StatCard label="Cuotas Recaudadas" value={formatCLP(income.monthly)} icon={TrendingUp} color="green" />
         <StatCard label="Actividades" value={formatCLP(income.activities)} icon={TrendingUp} color="cyan" />
         <StatCard label="Total Gastos" value={formatCLP(expenses.total ?? expenses.general)} icon={TrendingDown} color="rose"
@@ -123,7 +124,8 @@ export default function Dashboard() {
             { label: 'Total Ingresos',  value: formatCLP(income.total),          color: 'text-green-400' },
             { label: 'Total Gastos',    value: formatCLP(expenses.total ?? expenses.general), color: 'text-rose-400' },
             { label: 'Total Descuentos',value: formatCLP(discounts.total ?? 0),   color: 'text-amber-400' },
-            { label: 'Saldo General',   value: formatCLP(balance.general),        color: 'text-purple-400' },
+            { label: 'Saldo General',   value: formatCLP(balance.total ?? (balance.general + balance.pettyCash)), color: 'text-purple-400' },
+            { label: 'Fondo de cuotas', value: formatCLP(balance.general),        color: 'text-cyan-400' },
             { label: 'Caja Chica',      value: formatCLP(balance.pettyCash),      color: 'text-pink-400' },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-white/5 rounded-xl p-4">

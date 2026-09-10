@@ -22,8 +22,22 @@ const limpiar = () => {
 const temporizador = setInterval(limpiar, VENTANA_MS);
 temporizador.unref?.();
 
+// Se cuenta por IP + usuario, no solo por IP.
+//
+// Agrupar solo por IP convierte el freno en un arma: unos pocos intentos
+// fallidos contra un usuario cualquiera bloqueaban el login legítimo de la
+// tesorera desde la misma dirección. Y detrás de un proxy, esa dirección es
+// compartida por todo internet.
+const claveDe = (req) => {
+  const ip = req.ip || req.connection?.remoteAddress || 'desconocido';
+  const usuario = typeof req.body?.username === 'string'
+    ? req.body.username.trim().toLowerCase().slice(0, 60)
+    : '(sin usuario)';
+  return `${ip}|${usuario}`;
+};
+
 const loginLimiter = (req, res, next) => {
-  const clave = req.ip || req.connection?.remoteAddress || 'desconocido';
+  const clave = claveDe(req);
   const ahora = Date.now();
   const dato  = intentos.get(clave) || { contador: 0, desde: ahora, bloqueadoHasta: 0 };
 

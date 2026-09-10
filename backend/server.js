@@ -31,6 +31,13 @@ connectDB();
 
 const app = express();
 
+// Detrás del proxy de Render, req.ip es la dirección del proxy y no la del
+// visitante: todos los usuarios comparten un mismo contador y basta con unos
+// pocos intentos fallidos de cualquiera para bloquear el login de todos.
+// Se indica el número de saltos, nunca `true`: con `true` el cliente puede
+// falsificar X-Forwarded-For y saltarse el límite por completo.
+app.set('trust proxy', Number.parseInt(process.env.TRUST_PROXY_HOPS, 10) || 1);
+
 // El navegador compara el origen carácter por carácter: sin esquema o con barra
 // final, la cabecera no coincide y bloquea la respuesta aunque el servidor
 // responda 200. Se normaliza aquí para que un dedazo en la variable de entorno
@@ -42,14 +49,20 @@ const normalizarOrigen = (valor) => {
 };
 
 const origenPermitido = normalizarOrigen(process.env.FRONTEND_URL);
+if (!origenPermitido && process.env.NODE_ENV === 'production') {
+  console.error('❌ Falta FRONTEND_URL. En producción no se arranca con CORS abierto a cualquier origen.');
+  process.exit(1);
+}
 if (!origenPermitido) {
-  console.warn('⚠️  FRONTEND_URL no está definida: se aceptarán peticiones de cualquier origen.');
+  console.warn('⚠️  FRONTEND_URL no está definida: solo se aceptarán peticiones desde localhost.');
 } else if (origenPermitido !== process.env.FRONTEND_URL) {
   console.warn(`⚠️  FRONTEND_URL normalizada a "${origenPermitido}" (revisa la variable de entorno).`);
 }
 
+// Sin FRONTEND_URL se cae a localhost, no a '*': degradar a origen abierto es
+// una decisión demasiado grande para tomarla por omisión.
 app.use(cors({
-  origin: origenPermitido || '*',
+  origin: origenPermitido || [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/],
   credentials: true,
 }));
 // Límite explícito: sin él, un cuerpo enorme consume memoria del proceso.

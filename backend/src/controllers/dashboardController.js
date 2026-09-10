@@ -27,6 +27,8 @@ exports.getSummary = async (req, res) => {
   const discountsFromFees      = sum(discounts.filter(d => d.source === 'cuotas_mensuales'));
   const discountsFromPettyCash = sum(discounts.filter(d => d.source === 'caja_chica'));
 
+  // Saldo del fondo general por separado: lo recaudado en cuotas y actividades
+  // menos lo gastado desde ese fondo.
   const generalBalance = monthlyIncome + activitiesIncome - generalExpenses - discountsFromFees;
 
   // El mes se calcula en la zona horaria del curso: con toISOString() el servidor
@@ -42,7 +44,14 @@ exports.getSummary = async (req, res) => {
     income:   { monthly: monthlyIncome, activities: activitiesIncome, total: monthlyIncome + activitiesIncome },
     expenses: { general: generalExpenses, pettyCash: pettyCashExpenses, total: generalExpenses + pettyCashExpenses },
     discounts: { fromFees: discountsFromFees, fromPettyCash: discountsFromPettyCash, total: discountsFromFees + discountsFromPettyCash },
-    balance:  { general: generalBalance, pettyCash: pettyCash.currentBalance },
+    balance: {
+      general: generalBalance,
+      pettyCash: pettyCash.currentBalance,
+      // Dinero total disponible del curso: la suma de los dos fondos. Se calcula
+      // sumando los saldos, no repitiendo la fórmula, para que no pueda quedar
+      // descuadrado respecto de las partes que se muestran al lado.
+      total: generalBalance + pettyCash.currentBalance,
+    },
   });
 };
 

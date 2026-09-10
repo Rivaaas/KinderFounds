@@ -202,6 +202,12 @@ async function suiteConsistencia() {
     - libro.cajaChicaEgresos - libro.gastoCajaChica - libro.descuentoCajaChica;
   eq('Saldo caja chica = ingresos - egresos - gastos - descuentos', d.balance.pettyCash, cajaEsperada);
 
+  // El saldo general que ve el tesorero es el dinero total del curso: los dos
+  // fondos juntos, no solo el de cuotas.
+  eq('Saldo general = fondo de cuotas + caja chica', d.balance.total, saldoGeneralEsperado + cajaEsperada);
+  eq('El total nunca queda descuadrado respecto de sus partes',
+     d.balance.total, d.balance.general + d.balance.pettyCash);
+
   const totalAlumnos = await state.db.collection('students').countDocuments();
   eq('Dashboard: total de alumnos coincide con la BD', d.students.total, totalAlumnos);
 

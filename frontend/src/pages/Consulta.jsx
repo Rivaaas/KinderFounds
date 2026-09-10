@@ -91,7 +91,9 @@ export default function Consulta() {
   // Búsqueda con espera: no se consulta en cada tecla.
   useEffect(() => {
     const texto = query.trim();
-    if (texto.length < 2) { setResults([]); setAviso(''); return; }
+    // Tres caracteres, igual que el backend: con menos, el buscador se convertía
+    // en un listado del curso completo para quien barriera combinaciones.
+    if (texto.length < 3) { setResults([]); setAviso(''); return; }
 
     let vigente = true;
     setBuscando(true);
@@ -197,7 +199,7 @@ export default function Consulta() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => results.length && setAbierto(true)}
-              placeholder="Escribe el nombre del estudiante..."
+              placeholder="Escribe el nombre o apellido del estudiante..."
               className="w-full bg-white dark:bg-kinder-card border border-gray-200 dark:border-kinder-border
                          text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-slate-500
                          rounded-2xl pl-12 pr-12 py-4 text-base shadow-card dark:shadow-card-dark
@@ -233,7 +235,7 @@ export default function Consulta() {
             </ul>
           )}
 
-          {aviso && !abierto && query.trim().length >= 2 && !buscando && (
+          {aviso && !abierto && query.trim().length >= 3 && !buscando && (
             <p className="mt-3 text-sm text-center text-gray-500 dark:text-slate-400">{aviso}</p>
           )}
           {aviso && abierto && results.length === 0 && (

@@ -63,9 +63,15 @@ exports.resetPassword = async (req, res) => {
   if (!user) return res.status(404).json({ message: 'Usuario no encontrado.' });
 
   user.password = await bcrypt.hash(password, 12);
+  // Resetear la clave debe cerrar de verdad las sesiones de esa cuenta: sin
+  // esto, quien tuviera el token seguía entrando hasta que expirara.
+  user.passwordChangedAt = new Date();
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
   await user.save();
 
-  res.json({ message: `Contraseña de '${user.username}' actualizada.` });
+  res.json({
+    message: `Contraseña de '${user.username}' actualizada. Sus sesiones abiertas quedaron cerradas.`,
+  });
 };
 
 exports.remove = async (req, res) => {

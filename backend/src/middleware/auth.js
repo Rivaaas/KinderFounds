@@ -20,6 +20,13 @@ const protect = async (req, res, next) => {
     if (!req.user) return res.status(401).json({ message: 'Usuario no encontrado.' });
     if (req.user.active === false)
       return res.status(401).json({ message: 'Tu cuenta está desactivada.' });
+
+    // La versión del token debe coincidir con la del usuario: cada cambio de
+    // contraseña la incrementa, así que las sesiones anteriores quedan fuera.
+    // Los tokens antiguos sin versión cuentan como 0, igual que los usuarios
+    // que nunca han cambiado la clave, para no cerrar sesiones al desplegar.
+    if ((decoded.v || 0) !== (req.user.tokenVersion || 0))
+      return res.status(401).json({ message: 'Tu sesión expiró porque se cambió la contraseña. Vuelve a entrar.' });
     next();
   } catch {
     return res.status(401).json({ message: 'Token inválido o expirado.' });

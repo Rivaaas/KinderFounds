@@ -6,11 +6,12 @@ const C = require('./qa-e2e-c');
 const P = require('./qa-public');
 const CC = require('./qa-caja-chica');
 const V = require('./qa-viewer');
+const E = require('./qa-endurecimiento');
 
 const SUITES = [
   A.suiteAuth, A.suiteAlumnos, A.suiteCuotas, A.suiteRegenerar,
   B.suiteCajaChica, B.suiteGastos, B.suiteActividades, B.suiteDescuentos,
-  B.suiteConsistencia, B.suiteDuplicacion, C.suiteContrato, C.suiteFechas, P.suitePublica, CC.suiteCajaChicaSeccion, V.suiteViewer, B.suiteHostil, B.suiteIntegridad,
+  B.suiteConsistencia, B.suiteDuplicacion, C.suiteContrato, C.suiteFechas, P.suitePublica, CC.suiteCajaChicaSeccion, V.suiteViewer, E.suiteEndurecimiento, B.suiteHostil, B.suiteIntegridad,
 ];
 
 (async () => {

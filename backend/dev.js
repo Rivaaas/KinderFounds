@@ -14,8 +14,12 @@ const startServer = async () => {
     await mongoose.connect(uri);
     const User = require('./src/models/User');
 
-    const adminUser = process.env.ADMIN_USER     || 'admin';
-    const adminPass = process.env.ADMIN_PASSWORD || 'admin';
+    const adminUser = process.env.ADMIN_USER || 'admin';
+    const adminPass = process.env.ADMIN_PASSWORD;
+    if (!adminPass) {
+      console.error('❌ Define ADMIN_PASSWORD en backend/.env. No se usa una contraseña por defecto.');
+      process.exit(1);
+    }
 
     const exists = await User.findOne({ username: adminUser });
     if (!exists) {

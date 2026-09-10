@@ -31,7 +31,7 @@ const eq = (name, actual, expected, ctx = '') => {
 
 // --- HTTP ---------------------------------------------------------------
 const api = async (method, url, body, opts = {}) => {
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
   const token = opts.token === null ? null : (opts.token || state.token);
   if (token) headers.Authorization = `Bearer ${token}`;
 
