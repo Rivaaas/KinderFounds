@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { attachSlowRequestTracking } from './slowRequest';
 
 const baseURL = import.meta.env.VITE_API_URL || '/api';
 
@@ -35,5 +36,10 @@ api.interceptors.response.use(
     return Promise.reject(err);
   }
 );
+
+// Detección de peticiones lentas para avisar del arranque en frío de Render.
+// Se aplica a ambos clientes: el arranque afecta igual al panel y a la consulta pública.
+attachSlowRequestTracking(api);
+attachSlowRequestTracking(publicApi);
 
 export default api;

@@ -162,3 +162,15 @@ html:not(.dark) .recharts-tooltip-wrapper .glass {
 
 /* shadow-glow compat */
 .shadow-glow { box-shadow: 0 0 20px rgba(79, 157, 255, 0.35); }
+
+/* Barra indeterminada del aviso de servidor despertando: no hay progreso real
+   que informar, pero el movimiento comunica que la aplicación sigue trabajando. */
+@keyframes slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+.animate-slide { animation: slide 1.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide { animation: none; width: 100%; opacity: 0.4; }
+}
