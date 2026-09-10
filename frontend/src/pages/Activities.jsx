@@ -3,13 +3,15 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import Modal from '../components/UI/Modal';
 import ConfirmDialog from '../components/UI/ConfirmDialog';
-import { formatCLP, formatDate, ACTIVITY_TYPE_LABELS } from '../utils/formatters';
+import { formatCLP, formatDate, ACTIVITY_TYPE_LABELS, todayISO } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
 import { Plus, Pencil, Trash2, Eye, Zap } from 'lucide-react';
 
 const STATUSES = { planned: 'Planificada', active: 'En Curso', completed: 'Completada' };
-const INITIAL = { name: '', type: 'otro', date: new Date().toISOString().slice(0,10), description: '', observations: '', status: 'planned', students: [] };
+const INITIAL = { name: '', type: 'otro', date: todayISO(), description: '', observations: '', status: 'planned', students: [] };
 
 export default function Activities() {
+  const { canWrite } = useAuth();
   const [activities, setActivities] = useState([]);
   const [students,   setStudents]   = useState([]);
   const [loading,    setLoading]    = useState(true);
@@ -23,15 +25,20 @@ export default function Activities() {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await api.get('/activities');
-    setActivities(data);
-    setLoading(false);
+    try {
+      const { data } = await api.get('/activities');
+      setActivities(data);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'No se pudieron cargar los datos.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, []);
   useEffect(() => { api.get('/students?status=active').then(r => setStudents(r.data)); }, []);
 
-  const openCreate = () => { setForm(INITIAL); setModal('create'); };
+  const openCreate = () => { setForm({ ...INITIAL, date: todayISO() }); setModal('create'); };
   const openEdit   = (a)  => { setSelected(a); setForm({ ...a, date: a.date?.slice(0,10), students: a.students?.map(s=>s._id||s) || [] }); setModal('edit'); };
   const openView   = async (a) => {
     const { data } = await api.get(`/activities/${a._id}`);
@@ -81,11 +88,13 @@ export default function Activities() {
 
   return (
     <div className="space-y-5">
-      <div className="flex justify-end">
-        <button onClick={openCreate} className="btn-primary flex items-center gap-2">
-          <Plus size={16} /> Nueva Actividad
-        </button>
-      </div>
+      {canWrite && (
+        <div className="flex justify-end">
+          <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+            <Plus size={16} /> Nueva Actividad
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="text-center py-12 text-white/40">Cargando...</div>
@@ -110,8 +119,10 @@ export default function Activities() {
                 <span className="text-white/40">{a.students?.length || 0} participantes</span>
                 <div className="flex gap-1">
                   <button onClick={()=>openView(a)} className="p-1.5 text-cyan-400 hover:bg-cyan-400/10 rounded-lg"><Eye size={14} /></button>
-                  <button onClick={()=>openEdit(a)} className="p-1.5 text-purple-400 hover:bg-purple-400/10 rounded-lg"><Pencil size={14} /></button>
-                  <button onClick={()=>setConfirmId(a._id)} className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-lg"><Trash2 size={14} /></button>
+                  {canWrite && <>
+                    <button onClick={()=>openEdit(a)} className="p-1.5 text-purple-400 hover:bg-purple-400/10 rounded-lg"><Pencil size={14} /></button>
+                    <button onClick={()=>setConfirmId(a._id)} className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-lg"><Trash2 size={14} /></button>
+                  </>}
                 </div>
               </div>
             </div>

@@ -55,7 +55,8 @@ export default function Dashboard() {
           sub="Ingresos - Gastos" />
         <StatCard label="Cuotas Recaudadas" value={formatCLP(income.monthly)} icon={TrendingUp} color="green" />
         <StatCard label="Actividades" value={formatCLP(income.activities)} icon={TrendingUp} color="cyan" />
-        <StatCard label="Total Gastos" value={formatCLP(expenses.general)} icon={TrendingDown} color="rose" />
+        <StatCard label="Total Gastos" value={formatCLP(expenses.total ?? expenses.general)} icon={TrendingDown} color="rose"
+          sub={`General ${formatCLP(expenses.general)} · Caja Chica ${formatCLP(expenses.pettyCash ?? 0)}`} />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -120,7 +121,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
           {[
             { label: 'Total Ingresos',  value: formatCLP(income.total),          color: 'text-green-400' },
-            { label: 'Total Gastos',    value: formatCLP(expenses.general),       color: 'text-rose-400' },
+            { label: 'Total Gastos',    value: formatCLP(expenses.total ?? expenses.general), color: 'text-rose-400' },
             { label: 'Total Descuentos',value: formatCLP(discounts.total ?? 0),   color: 'text-amber-400' },
             { label: 'Saldo General',   value: formatCLP(balance.general),        color: 'text-purple-400' },
             { label: 'Caja Chica',      value: formatCLP(balance.pettyCash),      color: 'text-pink-400' },

@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import toast from 'react-hot-toast';
-import { Lock, User, Eye, EyeOff, Sun, Moon } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, Sun, Moon, ArrowLeft } from 'lucide-react';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -123,7 +123,15 @@ export default function Login() {
 
         </div>
 
-        <p className="text-center text-xs text-gray-400 dark:text-slate-600 mt-6">
+        {/* El login ya no es la portada: hay que poder volver a la consulta pública. */}
+        <Link
+          to="/"
+          className="mt-6 flex items-center justify-center gap-1.5 text-sm text-gray-500 dark:text-slate-400 hover:text-kinder-blue transition-colors"
+        >
+          <ArrowLeft size={14} /> Volver a la consulta de estudiantes
+        </Link>
+
+        <p className="text-center text-xs text-gray-400 dark:text-slate-600 mt-4">
           KINDERFOUNDS © {new Date().getFullYear()}
         </p>
       </div>

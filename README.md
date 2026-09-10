@@ -33,3 +33,28 @@ Las credenciales del administrador se configuran en el archivo `.env` — nunca 
 ## Deploy
 - **Backend** → [Render](https://render.com): conecta este repo, carpeta `backend`
 - **Frontend** → [Netlify](https://netlify.com): conecta este repo, carpeta `frontend`
+
+## Auditoría automatizada
+
+```bash
+cd backend
+npm run qa
+```
+
+Levanta el servidor real contra una MongoDB limpia en memoria y ejecuta 208
+verificaciones: autenticación y roles, simulación de 10 meses de cuotas con
+19 alumnos, cuadratura de todos los saldos contra un libro contable
+independiente, doble click, casos hostiles, inyección NoSQL, integridad
+referencial en la base y el contrato exacto que envía cada pantalla.
+No toca Atlas ni ninguna base real.
+
+## Respaldos
+
+```bash
+cd backend
+npm run backup                 # respalda a ../backups/<fecha>/, conserva 14
+npm run backup -- --keep 30    # conserva 30
+npm run restore -- --from ../backups/<fecha> --yes
+```
+
+Requiere `MONGODB_URI`. La base en memoria no es respaldable porque no persiste.

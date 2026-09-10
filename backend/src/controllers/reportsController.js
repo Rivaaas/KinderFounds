@@ -2,7 +2,7 @@ const Payment  = require('../models/Payment');
 const Expense  = require('../models/Expense');
 const Student  = require('../models/Student');
 const Activity = require('../models/Activity');
-const PettyCash = require('../models/PettyCash');
+const { getPettyCashLedger } = require('../utils/balances');
 
 exports.getGeneral = async (req, res) => {
   const { from, to } = req.query;
@@ -75,17 +75,14 @@ exports.getByActivity = async (req, res) => {
 };
 
 exports.getPettyCash = async (req, res) => {
-  const { from, to } = req.query;
-  const filter = {};
-  if (from || to) {
-    filter.date = {};
-    if (from) filter.date.$gte = new Date(from);
-    if (to)   filter.date.$lte = new Date(to);
-  }
-
-  const movements = await PettyCash.find(filter).sort({ date: -1 });
-  const totalIncome  = movements.filter((m) => m.type === 'income').reduce((s, m) => s + m.amount, 0);
-  const totalExpense = movements.filter((m) => m.type === 'expense').reduce((s, m) => s + m.amount, 0);
-
-  res.json({ movements, totalIncome, totalExpense, balance: totalIncome - totalExpense });
+  const ledger = await getPettyCashLedger(req.query);
+  res.json({
+    movements: ledger.entries,
+    totalIncome: ledger.totalIncome,
+    totalExpense: ledger.totalExpense,
+    initialBalance: ledger.initialBalance,
+    currentBalance: ledger.currentBalance,
+    movementCount: ledger.movementCount,
+    balance: ledger.balance,
+  });
 };

@@ -10,7 +10,18 @@ export const formatMonth = (yyyyMM) => {
   return new Date(Number(y), Number(m) - 1).toLocaleString('es-CL', { month: 'long', year: 'numeric' });
 };
 
-export const currentMonth = () => new Date().toISOString().slice(0, 7);
+// Fecha local en formato AAAA-MM-DD.
+//
+// toISOString() devuelve la fecha en UTC: en Chile (UTC-3/-4), después de las 21:00
+// ya es el día siguiente allá. Un pago registrado el lunes por la noche quedaba
+// fechado el martes, y el último día del mes la app proponía el mes equivocado
+// al generar cuotas. Se calcula con los getters locales.
+export const todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+export const currentMonth = () => todayISO().slice(0, 7);
 
 export const PAYMENT_TYPE_LABELS = {
   cuota_mensual: 'Cuota Mensual',

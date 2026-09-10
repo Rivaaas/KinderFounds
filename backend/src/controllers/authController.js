@@ -7,12 +7,16 @@ const generateToken = (id) =>
 
 exports.login = async (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password)
+  // El tipo se valida antes de usarlo: un objeto aquí llegaba a la consulta como
+  // operador de Mongo y, además, rompía .trim() tumbando el proceso.
+  if (typeof username !== 'string' || typeof password !== 'string' || !username || !password)
     return res.status(400).json({ message: 'Usuario y contraseña requeridos.' });
 
-  const user = await User.findOne({ username });
+  const user = await User.findOne({ username: username.trim().toLowerCase() });
   if (!user || !(await bcrypt.compare(password, user.password)))
     return res.status(401).json({ message: 'Credenciales incorrectas.' });
+  if (user.active === false)
+    return res.status(403).json({ message: 'Tu cuenta está desactivada. Contacta al tesorero.' });
 
   res.json({
     token: generateToken(user._id),
@@ -22,7 +26,7 @@ exports.login = async (req, res) => {
 
 exports.changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;
-  if (!currentPassword || !newPassword)
+  if (typeof currentPassword !== 'string' || typeof newPassword !== 'string' || !currentPassword || !newPassword)
     return res.status(400).json({ message: 'Datos incompletos.' });
   if (newPassword.length < 6)
     return res.status(400).json({ message: 'La nueva contraseña debe tener al menos 6 caracteres.' });

@@ -4,13 +4,15 @@ import toast from 'react-hot-toast';
 import Modal from '../components/UI/Modal';
 import ConfirmDialog from '../components/UI/ConfirmDialog';
 import Table from '../components/UI/Table';
-import { formatCLP, formatDate, EXPENSE_CATEGORY_LABELS, FUND_LABELS } from '../utils/formatters';
+import { formatCLP, formatDate, EXPENSE_CATEGORY_LABELS, FUND_LABELS, todayISO } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 
 const PAYMENT_METHODS = { efectivo: 'Efectivo', transferencia: 'Transferencia', debito: 'Débito', credito: 'Crédito', otro: 'Otro' };
-const INITIAL = { category: 'compra_actividad', amount: '', date: new Date().toISOString().slice(0,10), description: '', paymentMethod: 'efectivo', fund: 'general' };
+const INITIAL = { category: 'compra_actividad', amount: '', date: todayISO(), description: '', paymentMethod: 'efectivo', fund: 'general' };
 
 export default function Expenses() {
+  const { canWrite } = useAuth();
   const [expenses, setExpenses] = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [modal,    setModal]    = useState(null);
@@ -24,17 +26,22 @@ export default function Expenses() {
 
   const load = async () => {
     setLoading(true);
-    const q = new URLSearchParams();
-    if (filterFund) q.set('fund', filterFund);
-    if (filterCat)  q.set('category', filterCat);
-    const { data } = await api.get(`/expenses${q.toString() ? '?' + q : ''}`);
-    setExpenses(data);
-    setLoading(false);
+    try {
+      const q = new URLSearchParams();
+      if (filterFund) q.set('fund', filterFund);
+      if (filterCat)  q.set('category', filterCat);
+      const { data } = await api.get(`/expenses${q.toString() ? '?' + q : ''}`);
+      setExpenses(data);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'No se pudieron cargar los datos.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, [filterFund, filterCat]);
 
-  const openCreate = () => { setForm(INITIAL); setModal('create'); };
+  const openCreate = () => { setForm({ ...INITIAL, date: todayISO() }); setModal('create'); };
   const openEdit   = (e)  => { setSelected(e); setForm({ ...e, date: e.date?.slice(0,10) }); setModal('edit'); };
 
   const handleSave = async (e) => {
@@ -81,12 +88,12 @@ export default function Expenses() {
       <span className={v==='general'?'badge-paid':'badge-pending'}>{FUND_LABELS[v]}</span>
     )},
     { key: 'paymentMethod', label: 'Medio', render: (v) => PAYMENT_METHODS[v] || v },
-    { key: 'actions', label: '', render: (_, row) => (
+    ...(canWrite ? [{ key: 'actions', label: '', render: (_, row) => (
       <div className="flex gap-1">
         <button onClick={()=>openEdit(row)} className="p-1.5 text-purple-400 hover:bg-purple-400/10 rounded-lg"><Pencil size={14} /></button>
         <button onClick={()=>setConfirmId(row._id)} className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-lg"><Trash2 size={14} /></button>
       </div>
-    )},
+    )}] : []),
   ];
 
   return (
@@ -101,9 +108,11 @@ export default function Expenses() {
           <option value="">Todas las categorías</option>
           {Object.entries(EXPENSE_CATEGORY_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
         </select>
-        <button onClick={openCreate} className="btn-primary flex items-center gap-2 ml-auto">
-          <Plus size={16} /> Nuevo Gasto
-        </button>
+        {canWrite && (
+          <button onClick={openCreate} className="btn-primary flex items-center gap-2 ml-auto">
+            <Plus size={16} /> Nuevo Gasto
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

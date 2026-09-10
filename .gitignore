@@ -4,3 +4,12 @@ node_modules/
 dist/
 .DS_Store
 Thumbs.db
+backups/
+
+# Datos reales del curso: nombres de menores y estado de pago de sus familias.
+# El repositorio es público y el historial de git es permanente, así que estos
+# archivos se quedan solo en local. Los datos ya viven en MongoDB Atlas.
+backend/scripts/data/
+.env.*
+!.env.example
+*.bak

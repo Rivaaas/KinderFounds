@@ -6,7 +6,12 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "seed": "node src/config/seed.js"
+    "seed": "node src/config/seed.js",
+    "backup": "node scripts/backup.js",
+    "restore": "node scripts/restore.js",
+    "qa": "node tests/run.js",
+    "conectar": "node scripts/configurar-conexion.js",
+    "importar": "node scripts/import-tesoreria.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -20,5 +25,8 @@
   "devDependencies": {
     "nodemon": "^3.1.4",
     "mongodb-memory-server": "^10.0.0"
+  },
+  "overrides": {
+    "qs": "^6.16.0"
   }
 }

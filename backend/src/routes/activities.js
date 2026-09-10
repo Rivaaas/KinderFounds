@@ -1,12 +1,13 @@
 const router = require('express').Router();
-const c = require('../controllers/activityController');
-const { protect } = require('../middleware/auth');
+const { wrapAll } = require('../utils/asyncHandler');
+const c = wrapAll(require('../controllers/activityController'));
+const { protect, requireAdmin } = require('../middleware/auth');
 
 router.use(protect);
 router.get('/', c.getAll);
 router.get('/:id', c.getOne);
-router.post('/', c.create);
-router.put('/:id', c.update);
-router.delete('/:id', c.remove);
+router.post('/', requireAdmin, c.create);
+router.put('/:id', requireAdmin, c.update);
+router.delete('/:id', requireAdmin, c.remove);
 
 module.exports = router;

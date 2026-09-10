@@ -1,5 +1,6 @@
 const router = require('express').Router();
-const { getSummary, getMonthlyChart } = require('../controllers/dashboardController');
+const { wrapAll } = require('../utils/asyncHandler');
+const { getSummary, getMonthlyChart } = wrapAll(require('../controllers/dashboardController'));
 const { protect } = require('../middleware/auth');
 
 router.use(protect);

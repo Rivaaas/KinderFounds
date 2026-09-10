@@ -4,11 +4,13 @@ import toast from 'react-hot-toast';
 import Modal from '../components/UI/Modal';
 import ConfirmDialog from '../components/UI/ConfirmDialog';
 import Table from '../components/UI/Table';
+import { useAuth } from '../context/AuthContext';
 import { Plus, Pencil, Trash2, Eye, Search } from 'lucide-react';
 
 const INITIAL = { name: '', status: 'active' };
 
 export default function Students() {
+  const { canWrite } = useAuth();
   const [students,  setStudents]  = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [search,    setSearch]    = useState('');
@@ -23,9 +25,14 @@ export default function Students() {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await api.get('/students' + (filter ? `?status=${filter}` : ''));
-    setStudents(data);
-    setLoading(false);
+    try {
+      const { data } = await api.get('/students' + (filter ? `?status=${filter}` : ''));
+      setStudents(data);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'No se pudieron cargar los datos.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, [filter]);
@@ -33,9 +40,13 @@ export default function Students() {
   const openCreate = () => { setForm(INITIAL); setModal('create'); };
   const openEdit   = (s)  => { setSelected(s); setForm({ name: s.name, status: s.status }); setModal('edit'); };
   const openView   = async (s) => {
-    const { data } = await api.get(`/students/${s._id}`);
-    setDetail(data);
-    setModal('view');
+    try {
+      const { data } = await api.get(`/students/${s._id}`);
+      setDetail(data);
+      setModal('view');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'No se pudo abrir la ficha del alumno.');
+    }
   };
 
   const handleSave = async (e) => {
@@ -62,8 +73,11 @@ export default function Students() {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      await api.delete(`/students/${confirmId}`);
-      toast.success('Alumno eliminado.');
+      const { data } = await api.delete(`/students/${confirmId}`);
+      // Un alumno con historial financiero se marca inactivo en lugar de borrarse:
+      // se muestra el mensaje real del servidor para que quede claro qué ocurrió.
+      if (data?.softDeleted) toast(data.message, { icon: 'ℹ️', duration: 6000 });
+      else toast.success(data?.message || 'Alumno eliminado.');
       setConfirmId(null);
       load();
     } catch (err) {
@@ -87,8 +101,10 @@ export default function Students() {
     { key: 'actions', label: '', render: (_, row) => (
       <div className="flex gap-1">
         <button onClick={() => openView(row)} className="p-1.5 text-cyan-400 hover:bg-cyan-400/10 rounded-lg"><Eye size={15} /></button>
-        <button onClick={() => openEdit(row)} className="p-1.5 text-purple-400 hover:bg-purple-400/10 rounded-lg"><Pencil size={15} /></button>
-        <button onClick={() => setConfirmId(row._id)} className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-lg"><Trash2 size={15} /></button>
+        {canWrite && <>
+          <button onClick={() => openEdit(row)} className="p-1.5 text-purple-400 hover:bg-purple-400/10 rounded-lg"><Pencil size={15} /></button>
+          <button onClick={() => setConfirmId(row._id)} className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-lg"><Trash2 size={15} /></button>
+        </>}
       </div>
     )},
   ];
@@ -111,9 +127,11 @@ export default function Students() {
           <option value="active">Activos</option>
           <option value="inactive">Inactivos</option>
         </select>
-        <button onClick={openCreate} className="btn-primary flex items-center gap-2">
-          <Plus size={16} /> Agregar Alumno
-        </button>
+        {canWrite && (
+          <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+            <Plus size={16} /> Agregar Alumno
+          </button>
+        )}
       </div>
 
       {/* Stats bar */}

@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./src/config/db');
 const errorHandler = require('./src/middleware/errorHandler');
+const sanitize = require('./src/middleware/sanitize');
 
 const authRoutes       = require('./src/routes/auth');
 const studentRoutes    = require('./src/routes/students');
@@ -13,19 +14,42 @@ const pettyCashRoutes  = require('./src/routes/pettyCash');
 const dashboardRoutes  = require('./src/routes/dashboard');
 const reportRoutes     = require('./src/routes/reports');
 const discountRoutes   = require('./src/routes/discounts');
+const userRoutes       = require('./src/routes/users');
+const publicRoutes     = require('./src/routes/public');
 
 connectDB();
 
 const app = express();
 
+// El navegador compara el origen carácter por carácter: sin esquema o con barra
+// final, la cabecera no coincide y bloquea la respuesta aunque el servidor
+// responda 200. Se normaliza aquí para que un dedazo en la variable de entorno
+// no vuelva a costar una sesión de diagnóstico.
+const normalizarOrigen = (valor) => {
+  if (!valor) return null;
+  const limpio = valor.trim().replace(/\/+$/, '');
+  return /^https?:\/\//.test(limpio) ? limpio : `https://${limpio}`;
+};
+
+const origenPermitido = normalizarOrigen(process.env.FRONTEND_URL);
+if (!origenPermitido) {
+  console.warn('⚠️  FRONTEND_URL no está definida: se aceptarán peticiones de cualquier origen.');
+} else if (origenPermitido !== process.env.FRONTEND_URL) {
+  console.warn(`⚠️  FRONTEND_URL normalizada a "${origenPermitido}" (revisa la variable de entorno).`);
+}
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: origenPermitido || '*',
   credentials: true,
 }));
-app.use(express.json());
+// Límite explícito: sin él, un cuerpo enorme consume memoria del proceso.
+app.use(express.json({ limit: '200kb' }));
+app.use(sanitize);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', app: 'KINDERFOUNDS' }));
 
+// Consulta pública de estado de cuenta: sin autenticación, a propósito.
+app.use('/api/public',     publicRoutes);
 app.use('/api/auth',       authRoutes);
 app.use('/api/students',   studentRoutes);
 app.use('/api/payments',   paymentRoutes);
@@ -35,6 +59,7 @@ app.use('/api/petty-cash', pettyCashRoutes);
 app.use('/api/dashboard',  dashboardRoutes);
 app.use('/api/reports',    reportRoutes);
 app.use('/api/discounts',  discountRoutes);
+app.use('/api/users',      userRoutes);
 
 app.use(errorHandler);
 

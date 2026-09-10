@@ -5,6 +5,7 @@ import Modal from '../components/UI/Modal';
 import ConfirmDialog from '../components/UI/ConfirmDialog';
 import Table from '../components/UI/Table';
 import { formatCLP } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
 import { Plus, Pencil, Trash2, Tag } from 'lucide-react';
 
 const CATEGORIES = {
@@ -23,6 +24,7 @@ const SOURCES = {
 const INITIAL = { description: '', amount: '', source: 'cuotas_mensuales', category: 'otro' };
 
 export default function Discounts() {
+  const { canWrite } = useAuth();
   const [discounts,  setDiscounts]  = useState([]);
   const [totals,     setTotals]     = useState({ total: 0, totalFromFees: 0, totalFromPettyCash: 0 });
   const [loading,    setLoading]    = useState(true);
@@ -36,11 +38,16 @@ export default function Discounts() {
 
   const load = async () => {
     setLoading(true);
-    const q = filterSrc ? `?source=${filterSrc}` : '';
-    const { data } = await api.get(`/discounts${q}`);
-    setDiscounts(data.discounts);
-    setTotals({ total: data.total, totalFromFees: data.totalFromFees, totalFromPettyCash: data.totalFromPettyCash });
-    setLoading(false);
+    try {
+      const q = filterSrc ? `?source=${filterSrc}` : '';
+      const { data } = await api.get(`/discounts${q}`);
+      setDiscounts(data.discounts);
+      setTotals({ total: data.total, totalFromFees: data.totalFromFees, totalFromPettyCash: data.totalFromPettyCash });
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'No se pudieron cargar los datos.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, [filterSrc]);
@@ -96,12 +103,12 @@ export default function Discounts() {
         {SOURCES[v]}
       </span>
     )},
-    { key: 'actions', label: '', render: (_, row) => (
+    ...(canWrite ? [{ key: 'actions', label: '', render: (_, row) => (
       <div className="flex gap-1">
         <button onClick={() => openEdit(row)} className="p-1.5 text-purple-400 hover:bg-purple-400/10 rounded-lg"><Pencil size={14} /></button>
         <button onClick={() => setConfirmId(row._id)} className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-lg"><Trash2 size={14} /></button>
       </div>
-    )},
+    )}] : []),
   ];
 
   return (
@@ -135,9 +142,11 @@ export default function Discounts() {
           <option value="cuotas_mensuales">Cuotas Mensuales</option>
           <option value="caja_chica">Caja Chica</option>
         </select>
-        <button onClick={openCreate} className="btn-primary flex items-center gap-2 ml-auto">
-          <Plus size={16} /> Nuevo Descuento
-        </button>
+        {canWrite && (
+          <button onClick={openCreate} className="btn-primary flex items-center gap-2 ml-auto">
+            <Plus size={16} /> Nuevo Descuento
+          </button>
+        )}
       </div>
 
       {/* Tabla */}

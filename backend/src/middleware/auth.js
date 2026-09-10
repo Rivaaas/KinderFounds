@@ -16,10 +16,20 @@ const protect = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = await User.findById(decoded.id).select('-password');
     if (!req.user) return res.status(401).json({ message: 'Usuario no encontrado.' });
+    if (req.user.active === false)
+      return res.status(401).json({ message: 'Tu cuenta está desactivada.' });
     next();
   } catch {
     return res.status(401).json({ message: 'Token inválido o expirado.' });
   }
 };
 
-module.exports = { protect };
+// Los perfiles 'viewer' solo consultan: cualquier operación que modifique datos
+// queda reservada a 'admin'. Se aplica en las rutas POST/PUT/DELETE.
+const requireAdmin = (req, res, next) => {
+  if (req.user?.role !== 'admin')
+    return res.status(403).json({ message: 'Tu perfil es de solo lectura.' });
+  next();
+};
+
+module.exports = { protect, requireAdmin };

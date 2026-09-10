@@ -12,6 +12,7 @@ const titles = {
   '/petty-cash': { label: 'Caja Chica',      emoji: '🐷' },
   '/statistics': { label: 'Estadísticas',    emoji: '📊' },
   '/reports':    { label: 'Reportes',        emoji: '📄' },
+  '/users':      { label: 'Perfiles',         emoji: '🔑' },
 };
 
 export default function Header({ onMenuClick }) {

@@ -4,12 +4,14 @@ import toast from 'react-hot-toast';
 import Modal from '../components/UI/Modal';
 import ConfirmDialog from '../components/UI/ConfirmDialog';
 import Table from '../components/UI/Table';
-import { formatCLP, formatDate, formatMonth, currentMonth, PAYMENT_TYPE_LABELS, STATUS_LABELS } from '../utils/formatters';
+import { formatCLP, formatDate, formatMonth, currentMonth, PAYMENT_TYPE_LABELS, STATUS_LABELS, todayISO } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
 import { Plus, Trash2, Pencil, CalendarClock, RefreshCw } from 'lucide-react';
 
-const INITIAL = { type: 'cuota_mensual', amount: '', date: new Date().toISOString().slice(0,10), student: '', description: '', status: 'pending', month: currentMonth() };
+const INITIAL = { type: 'cuota_mensual', amount: '', date: todayISO(), student: '', description: '', status: 'pending', month: currentMonth() };
 
 export default function Payments() {
+  const { canWrite } = useAuth();
   const [payments,  setPayments]  = useState([]);
   const [students,  setStudents]  = useState([]);
   const [loading,   setLoading]   = useState(true);
@@ -37,10 +39,15 @@ export default function Payments() {
 
   const load = async () => {
     setLoading(true);
-    const q = buildQuery();
-    const { data } = await api.get(`/payments${q ? '?' + q : ''}`);
-    setPayments(data);
-    setLoading(false);
+    try {
+      const q = buildQuery();
+      const { data } = await api.get(`/payments${q ? '?' + q : ''}`);
+      setPayments(data);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'No se pudieron cargar los datos.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, [filterMonth, filterStatus, filterType]);
@@ -54,7 +61,7 @@ export default function Payments() {
     }
   }, [filterMonth]);
 
-  const openCreate = () => { setForm(INITIAL); setModal('create'); };
+  const openCreate = () => { setForm({ ...INITIAL, date: todayISO() }); setModal('create'); };
   const openEdit   = (p)  => { setSelected(p); setForm({ ...p, student: p.student?._id || '', date: p.date?.slice(0,10) }); setModal('edit'); };
 
   const handleSave = async (e) => {
@@ -115,7 +122,7 @@ export default function Payments() {
 
   const quickPay = async (id) => {
     try {
-      await api.put(`/payments/${id}`, { status: 'paid', date: new Date().toISOString().slice(0,10) });
+      await api.put(`/payments/${id}`, { status: 'paid', date: todayISO() });
       toast.success('Marcado como pagado.');
       load();
       if (filterMonth) {
@@ -136,7 +143,7 @@ export default function Payments() {
         {STATUS_LABELS[v]}
       </span>
     )},
-    { key: 'actions', label: '', render: (_, row) => (
+    ...(canWrite ? [{ key: 'actions', label: '', render: (_, row) => (
       <div className="flex gap-1">
         {row.status === 'pending' && (
           <button onClick={() => quickPay(row._id)} className="px-2 py-1 text-xs text-green-400 hover:bg-green-400/10 rounded-lg border border-green-400/30">✓ Pagar</button>
@@ -144,7 +151,7 @@ export default function Payments() {
         <button onClick={() => openEdit(row)} className="p-1.5 text-purple-400 hover:bg-purple-400/10 rounded-lg"><Pencil size={14} /></button>
         <button onClick={() => setConfirmId(row._id)} className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-lg"><Trash2 size={14} /></button>
       </div>
-    )},
+    )}] : []),
   ];
 
   return (
@@ -162,12 +169,14 @@ export default function Payments() {
           <option value="">Todos los tipos</option>
           {Object.entries(PAYMENT_TYPE_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
         </select>
-        <button onClick={() => setGenModal(true)} className="btn-ghost border border-white/20 flex items-center gap-2">
-          <RefreshCw size={15} /> Generar Cuotas
-        </button>
-        <button onClick={openCreate} className="btn-primary flex items-center gap-2 ml-auto">
-          <Plus size={16} /> Nuevo Pago
-        </button>
+        {canWrite && <>
+          <button onClick={() => setGenModal(true)} className="btn-ghost border border-white/20 flex items-center gap-2">
+            <RefreshCw size={15} /> Generar Cuotas
+          </button>
+          <button onClick={openCreate} className="btn-primary flex items-center gap-2 ml-auto">
+            <Plus size={16} /> Nuevo Pago
+          </button>
+        </>}
       </div>
 
       {/* Month summary */}
@@ -253,7 +262,10 @@ export default function Payments() {
       {/* Generate monthly fees modal */}
       <Modal open={genModal} onClose={()=>setGenModal(false)} title="Generar Cuotas Mensuales" size="sm">
         <form onSubmit={handleGenerate} className="space-y-4">
-          <p className="text-sm text-white/60">Se crearán cuotas pendientes para todos los estudiantes activos del mes seleccionado.</p>
+          <p className="text-sm text-white/60">
+            Se crea una cuota pendiente por cada alumno activo que aún no tenga cuota de ese mes.
+            Los alumnos que ya la tienen —pagada o pendiente— se respetan y no se les vuelve a cobrar.
+          </p>
           <div>
             <label className="block text-xs text-white/60 mb-1">Mes *</label>
             <input type="month" value={genForm.month} onChange={(e)=>setGenForm({...genForm,month:e.target.value})} className="input-field" />

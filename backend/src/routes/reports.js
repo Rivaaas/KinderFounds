@@ -1,5 +1,6 @@
 const router = require('express').Router();
-const c = require('../controllers/reportsController');
+const { wrapAll } = require('../utils/asyncHandler');
+const c = wrapAll(require('../controllers/reportsController'));
 const { protect } = require('../middleware/auth');
 
 router.use(protect);

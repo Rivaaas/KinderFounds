@@ -1,8 +1,10 @@
 const router = require('express').Router();
-const { login, me, changePassword } = require('../controllers/authController');
+const { wrapAll } = require('../utils/asyncHandler');
+const { login, me, changePassword } = wrapAll(require('../controllers/authController'));
 const { protect } = require('../middleware/auth');
+const loginLimiter = require('../middleware/loginLimiter');
 
-router.post('/login', login);
+router.post('/login', loginLimiter, login);
 router.get('/me', protect, me);
 router.put('/change-password', protect, changePassword);
 

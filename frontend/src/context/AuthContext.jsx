@@ -30,7 +30,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{
+      user, login, logout, loading,
+      isAuthenticated: !!user,
+      // Los perfiles 'viewer' solo consultan; el backend rechaza sus escrituras
+      // y la UI oculta las acciones para no ofrecer lo que va a fallar.
+      isAdmin: user?.role === 'admin',
+      canWrite: user?.role === 'admin',
+    }}>
       {children}
     </AuthContext.Provider>
   );
