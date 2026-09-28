@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import toast from 'react-hot-toast';
 import { Lock, User, Eye, EyeOff, Sun, Moon, ArrowLeft } from 'lucide-react';
 import Footer from '../components/Layout/Footer';
+import { BuildzBadge, BuildzBanner } from '../components/Brand/Buildz';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -64,6 +65,7 @@ export default function Login() {
           <p className="text-gray-500 dark:text-slate-400 text-sm mt-2 font-medium">
             Finanzas del Curso ✨
           </p>
+          <BuildzBadge className="mt-3" />
         </div>
 
         {/* Card */}
@@ -132,6 +134,7 @@ export default function Login() {
           <ArrowLeft size={14} /> Volver a la consulta de estudiantes
         </Link>
 
+        <BuildzBanner className="mt-6" />
         <Footer className="mt-6" />
       </div>
     </div>

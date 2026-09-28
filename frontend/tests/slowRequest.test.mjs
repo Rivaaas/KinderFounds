@@ -87,6 +87,37 @@ const pruebas = {
       'el aviso quedó visible tras un error');
   },
 
+  async 'Si el servidor ya respondió, una petición colgada no mantiene el aviso'() {
+    // Caso real reportado: una petición queda colgada durante el arranque, las
+    // demás cargan bien y el aviso no se iba nunca.
+    const colgada = trackRequest();
+    await espera(SLOW_THRESHOLD_MS + MARGEN);
+    const durante = isWaking();
+    const otra = trackRequest();
+    await espera(100);
+    releaseRequest(otra, { responded: true }); // el servidor contestó: está despierto
+    await espera(100);
+    const tras = isWaking();
+    await espera(SLOW_THRESHOLD_MS + MARGEN); // la colgada sigue pendiente
+    const despues = isWaking();
+    releaseRequest(colgada);
+    check('Una respuesta del servidor oculta el aviso aunque quede una petición colgada',
+      durante === true && tras === false && despues === false,
+      `durante: ${durante}, tras respuesta: ${tras}, más tarde: ${despues}`);
+  },
+
+  async 'Una petición nueva y lenta tras una respuesta vuelve a avisar'() {
+    const a = trackRequest();
+    releaseRequest(a, { responded: true });
+    await espera(10);
+    const b = trackRequest();
+    await espera(SLOW_THRESHOLD_MS + MARGEN);
+    const avisa = isWaking();
+    releaseRequest(b);
+    check('Una petición lenta posterior a la última respuesta sí avisa', avisa === true,
+      'no avisó');
+  },
+
   async 'Sin peticiones no quedan temporizadores vivos'() {
     // Se compara contra la referencia previa: medir el total de temporizadores del
     // proceso incluiría los de la propia prueba y daría un resultado engañoso.
@@ -125,6 +156,8 @@ const pruebaIntegracion = async () => {
   const axios = (await import('axios')).default;
 
   const servidor = http.createServer((req, res) => {
+    // /colgado nunca responde (conexión estancada).
+    if (req.url.startsWith('/colgado')) return;
     // /lento simula el arranque en frío; /rapido, una petición normal.
     const demora = req.url.startsWith('/lento') ? SLOW_THRESHOLD_MS + 1200 : 50;
     setTimeout(() => {
@@ -156,6 +189,18 @@ const pruebaIntegracion = async () => {
     respuesta.status === 200 && respuesta.data.ok === true, JSON.stringify(respuesta.data));
   check('Integración: el aviso se oculta solo al llegar la respuesta', isWaking() === false,
     'el aviso quedó visible tras responder');
+
+  // Petición colgada (nunca responde) + una normal: el aviso debe irse igual.
+  const colgada = cliente.get('/colgado', { timeout: SLOW_THRESHOLD_MS * 3 }).catch(() => 'timeout');
+  await espera(SLOW_THRESHOLD_MS + 600);
+  const conColgada = isWaking();
+  await cliente.get('/rapido');
+  await espera(100);
+  check('Integración: una petición colgada no deja el aviso pegado si el servidor responde otra',
+    conColgada === true && isWaking() === false, `antes: ${conColgada}, después: ${isWaking()}`);
+  const fin = await colgada;
+  check('Integración: la petición colgada termina por timeout y se libera',
+    fin === 'timeout' && isWaking() === false, `resultado: ${fin}`);
 
   // Un error también debe liberar el aviso.
   servidor.close();

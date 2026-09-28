@@ -23,6 +23,12 @@ let secuencia = 0;
 let temporizador = null;
 let avisando = false;
 let inicioAviso = 0;
+// Instante de la última respuesta real del servidor (éxito o error HTTP). Si el
+// servidor ya contestó algo, está despierto: las peticiones que empezaron antes
+// de esa respuesta y siguen colgadas no son un arranque en frío y no deben
+// mantener el aviso. Sin esto, una sola petición colgada (conexión estancada
+// durante el arranque) dejaba el aviso visible para siempre.
+let ultimaRespuesta = 0;
 
 const ahora = () => Date.now();
 
@@ -35,8 +41,11 @@ const evaluar = () => {
   temporizador = null;
 
   const t = ahora();
-  const masAntigua = Math.min(...[...enCurso.values()], Infinity);
-  const lenta = enCurso.size > 0 && t - masAntigua >= SLOW_THRESHOLD_MS;
+  // Solo cuentan las peticiones iniciadas después de la última respuesta del
+  // servidor: las anteriores ya quedaron desmentidas como "servidor dormido".
+  const relevantes = [...enCurso.values()].filter((inicio) => inicio >= ultimaRespuesta);
+  const masAntigua = Math.min(...relevantes, Infinity);
+  const lenta = relevantes.length > 0 && t - masAntigua >= SLOW_THRESHOLD_MS;
 
   if (lenta !== avisando) {
     avisando = lenta;
@@ -65,9 +74,13 @@ export const trackRequest = () => {
 };
 
 // Libera una petición, haya terminado bien o mal.
-export const releaseRequest = (id) => {
+//
+// `responded` indica que el servidor contestó (respuesta 2xx o error HTTP con
+// status). Un fallo de red sin respuesta no prueba que el servidor esté arriba.
+export const releaseRequest = (id, { responded = false } = {}) => {
   if (id === undefined || id === null) return;
   enCurso.delete(id);
+  if (responded) ultimaRespuesta = ahora();
 
   if (enCurso.size === 0) {
     if (temporizador !== null) { clearTimeout(temporizador); temporizador = null; }
@@ -75,6 +88,9 @@ export const releaseRequest = (id) => {
     return;
   }
   // Quedan peticiones: puede que la que gatilló el aviso ya haya terminado.
+  // Se cancela el temporizador pendiente antes de reevaluar; si no, quedaba
+  // huérfano y se acumulaban revisiones duplicadas.
+  if (temporizador !== null) { clearTimeout(temporizador); temporizador = null; }
   evaluar();
 };
 
@@ -90,9 +106,9 @@ export const isWaking = () => avisando;
 
 // Conecta una instancia de axios al detector.
 //
-// Marca cada petición al salir y la libera al volver, responda bien o mal. No
-// fija timeout: la petición original se deja correr hasta que el servidor
-// despierte, que es justamente lo que se quiere durante el arranque en frío.
+// Marca cada petición al salir y la libera al volver, responda bien o mal. El
+// detector no fija timeout propio: el tope lo pone el cliente (REQUEST_TIMEOUT_MS
+// en api.js), holgado para cubrir el arranque en frío.
 export const attachSlowRequestTracking = (instancia) => {
   instancia.interceptors.request.use(
     (config) => { config.__slowId = trackRequest(); return config; },
@@ -100,8 +116,11 @@ export const attachSlowRequestTracking = (instancia) => {
   );
 
   instancia.interceptors.response.use(
-    (res) => { releaseRequest(res.config?.__slowId); return res; },
-    (error) => { releaseRequest(error?.config?.__slowId); return Promise.reject(error); }
+    (res) => { releaseRequest(res.config?.__slowId, { responded: true }); return res; },
+    (error) => {
+      releaseRequest(error?.config?.__slowId, { responded: Boolean(error?.response) });
+      return Promise.reject(error);
+    }
   );
 
   return instancia;
@@ -115,4 +134,5 @@ export const _reset = () => {
   secuencia = 0;
   avisando = false;
   inicioAviso = 0;
+  ultimaRespuesta = 0;
 };

@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Users, CreditCard, Receipt, Zap,
   PiggyBank, BarChart3, FileText, LogOut, X, Tag, KeyRound
 } from 'lucide-react';
+import { BuildzSidebarCredit } from '../Brand/Buildz';
 
 const navItems = [
   { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard',      bg: 'bg-blue-100 dark:bg-blue-900/40',   ic: 'text-kinder-blue' },
@@ -45,7 +46,7 @@ export default function Sidebar({ open, onClose }) {
               <span className="text-lg font-extrabold text-kinder-blue tracking-tight">KINDERFOUNDS</span>
               <span className="text-lg">⭐</span>
             </div>
-            <div className="text-xs text-gray-400 dark:text-slate-500 mt-0.5 font-medium">Finanzas del Curso</div>
+            <div className="text-xs text-gray-400 dark:text-slate-500 mt-0.5 font-medium">Finanzas del Curso · por Buildz.cl</div>
           </div>
           <button onClick={onClose} className="md:hidden text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors">
             <X size={20} />
@@ -79,6 +80,11 @@ export default function Sidebar({ open, onClose }) {
             </NavLink>
           ))}
         </nav>
+
+        {/* Crédito del creador */}
+        <div className="px-3 pb-3">
+          <BuildzSidebarCredit />
+        </div>
 
         {/* User */}
         <div className="px-4 py-4 border-t border-gray-100 dark:border-kinder-border">

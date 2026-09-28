@@ -3,8 +3,14 @@ import { attachSlowRequestTracking } from './slowRequest';
 
 const baseURL = import.meta.env.VITE_API_URL || '/api';
 
+// Tope por petición. El arranque en frío de Render tarda hasta ~60 s, así que se
+// deja margen amplio; pero sin tope, una conexión estancada quedaba pendiente
+// para siempre y la pantalla nunca salía del estado de espera.
+const REQUEST_TIMEOUT_MS = 90000;
+
 const api = axios.create({
   baseURL,
+  timeout: REQUEST_TIMEOUT_MS,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -13,6 +19,7 @@ const api = axios.create({
 // requiere sesión.
 export const publicApi = axios.create({
   baseURL,
+  timeout: REQUEST_TIMEOUT_MS,
   headers: { 'Content-Type': 'application/json' },
 });
 

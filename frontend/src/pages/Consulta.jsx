@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Search, X, Lock, Sun, Moon, Loader2, PiggyBank, Wallet, BarChart3 } from 'lucide-react';
 import { publicApi } from '../services/api';
 import Footer from '../components/Layout/Footer';
+import { BuildzBadge, BuildzBanner } from '../components/Brand/Buildz';
 import { useTheme } from '../context/ThemeContext';
 import { formatCLP } from '../utils/formatters';
 
@@ -159,7 +160,8 @@ export default function Consulta() {
       <div className="relative max-w-3xl mx-auto px-4 pb-16">
 
         {/* Barra superior */}
-        <header className="flex items-center justify-end gap-2 py-4">
+        <header className="flex items-center gap-2 py-4">
+          <BuildzBadge className="mr-auto" />
           <button
             onClick={toggle}
             aria-label={dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
@@ -169,9 +171,10 @@ export default function Consulta() {
           </button>
           <Link
             to="/login"
+            aria-label="Administración"
             className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-xl bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 shadow-sm hover:text-kinder-blue transition-colors"
           >
-            <Lock size={14} /> Administración
+            <Lock size={14} /> <span className="hidden sm:inline">Administración</span>
           </Link>
         </header>
 
@@ -424,6 +427,7 @@ export default function Consulta() {
         <div className="mt-16 text-center text-xs text-gray-400 dark:text-slate-600">
           Si un monto no coincide con lo que pagaste, avisa al tesorero del curso.
         </div>
+        <BuildzBanner className="mt-8" />
         <Footer className="mt-6 pt-6 border-t border-gray-200/60 dark:border-kinder-border" />
       </div>
     </div>
