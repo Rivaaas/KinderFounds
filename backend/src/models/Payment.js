@@ -9,6 +9,9 @@ const PAYMENT_TYPES = [
   'paseo',
   'rifa',
   'aporte_voluntario',
+  // Cuota de una actividad concreta (stand, paseo, regalo...): siempre lleva
+  // `activity` y `student`. Se registra desde la pantalla Actividades y Cuotas.
+  'actividad',
   'otro',
 ];
 
@@ -31,6 +34,13 @@ const paymentSchema = new mongoose.Schema({
 paymentSchema.index(
   { student: 1, month: 1, type: 1 },
   { unique: true, partialFilterExpression: { type: 'cuota_mensual', student: { $exists: true }, month: { $exists: true } } }
+);
+
+// La cuota de una actividad es única por alumno y actividad: el índice hace
+// atómico el "marcar pagado" aunque lleguen dos clics a la vez.
+paymentSchema.index(
+  { student: 1, activity: 1, type: 1 },
+  { unique: true, partialFilterExpression: { type: 'actividad', student: { $exists: true }, activity: { $exists: true } } }
 );
 
 module.exports = mongoose.model('Payment', paymentSchema);

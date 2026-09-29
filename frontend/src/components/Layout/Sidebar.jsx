@@ -12,7 +12,7 @@ const navItems = [
   { to: '/payments',   icon: CreditCard,       label: 'Cuotas y Pagos', bg: 'bg-green-100 dark:bg-green-900/40',  ic: 'text-kinder-green' },
   { to: '/expenses',   icon: Receipt,          label: 'Gastos',         bg: 'bg-red-100 dark:bg-red-900/40',      ic: 'text-kinder-coral' },
   { to: '/discounts',  icon: Tag,              label: 'Descuentos',     bg: 'bg-amber-100 dark:bg-amber-900/40',  ic: 'text-amber-500' },
-  { to: '/activities', icon: Zap,              label: 'Actividades',    bg: 'bg-yellow-100 dark:bg-yellow-900/40',ic: 'text-kinder-yellow dark:text-yellow-400' },
+  { to: '/activities', icon: Zap,              label: 'Actividades y Cuotas', bg: 'bg-yellow-100 dark:bg-yellow-900/40',ic: 'text-kinder-yellow dark:text-yellow-400' },
   { to: '/petty-cash', icon: PiggyBank,        label: 'Caja Chica',     bg: 'bg-pink-100 dark:bg-pink-900/40',    ic: 'text-pink-500' },
   { to: '/statistics', icon: BarChart3,        label: 'Estadísticas',   bg: 'bg-indigo-100 dark:bg-indigo-900/40',ic: 'text-indigo-500' },
   { to: '/reports',    icon: FileText,         label: 'Reportes',       bg: 'bg-slate-100 dark:bg-slate-700',     ic: 'text-slate-500 dark:text-slate-300' },

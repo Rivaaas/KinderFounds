@@ -31,6 +31,7 @@ export const PAYMENT_TYPE_LABELS = {
   paseo: 'Paseo',
   rifa: 'Rifa',
   aporte_voluntario: 'Aporte Voluntario',
+  actividad: 'Cuota de Actividad',
   otro: 'Otro',
 };
 

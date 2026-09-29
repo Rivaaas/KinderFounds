@@ -22,6 +22,9 @@ const limiteEstado = createRateLimit({
 });
 
 router.get('/students', limiteBusqueda, c.searchStudents);
+// Actividades del curso con quiénes pagaron y quiénes no. Solo las marcadas como
+// visibles; nombres y montos, sin identificadores.
+router.get('/activities', limiteBusqueda, c.getActivities);
 router.get('/students/:id/statement', limiteEstado, c.getStatement);
 
 module.exports = router;

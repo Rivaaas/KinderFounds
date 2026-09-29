@@ -8,7 +8,7 @@ const titles = {
   '/payments':   { label: 'Cuotas y Pagos',  emoji: '💳' },
   '/expenses':   { label: 'Gastos',          emoji: '📉' },
   '/discounts':  { label: 'Descuentos',      emoji: '🏷️' },
-  '/activities': { label: 'Actividades',     emoji: '⚡' },
+  '/activities': { label: 'Actividades y Cuotas', emoji: '⚡' },
   '/petty-cash': { label: 'Caja Chica',      emoji: '🐷' },
   '/statistics': { label: 'Estadísticas',    emoji: '📊' },
   '/reports':    { label: 'Reportes',        emoji: '📄' },

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, X, Lock, Sun, Moon, Loader2, PiggyBank, Wallet, BarChart3 } from 'lucide-react';
+import { Search, X, Lock, Sun, Moon, Loader2, PiggyBank, Wallet, BarChart3, PartyPopper } from 'lucide-react';
 import { publicApi } from '../services/api';
 import Footer from '../components/Layout/Footer';
 import { BuildzBadge, BuildzBanner } from '../components/Brand/Buildz';
+import ActividadesCurso from '../components/Public/ActividadesCurso';
 import { useTheme } from '../context/ThemeContext';
 import { formatCLP } from '../utils/formatters';
 
@@ -81,6 +82,8 @@ export default function Consulta() {
   const cajaRef = useRef(null);
 
   const seleccionado = params.get('alumno');
+  // Vista de actividades del curso: vive en la URL para poder compartir el enlace.
+  const vistaActividades = params.get('vista') === 'actividades';
 
   // Cierra el desplegable al hacer clic fuera.
   useEffect(() => {
@@ -149,6 +152,17 @@ export default function Consulta() {
 
   const est = estado ? (ESTADOS[estado.summary.estado] || ESTADOS.con_deuda) : null;
 
+  const BotonActividades = ({ className = '' }) => (
+    <button
+      onClick={() => setParams({ vista: 'actividades' })}
+      className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm
+                  bg-white dark:bg-kinder-card border border-kinder-lavender/40 text-kinder-lavender
+                  shadow-card dark:shadow-card-dark hover:bg-kinder-lavender hover:text-white transition-colors ${className}`}
+    >
+      <PartyPopper size={16} /> Ver actividades del curso
+    </button>
+  );
+
   return (
     <div className="min-h-screen bg-kinder-sky dark:bg-kinder-dark">
       {/* Decoración de fondo */}
@@ -178,6 +192,9 @@ export default function Consulta() {
           </Link>
         </header>
 
+        {vistaActividades ? (
+          <ActividadesCurso onVolver={() => setParams({})} />
+        ) : (<>
         {/* Portada */}
         <div className="text-center mt-4 mb-8">
           <div className="text-5xl mb-3">💰</div>
@@ -421,8 +438,16 @@ export default function Consulta() {
           <div className="mt-12 text-center text-gray-400 dark:text-slate-500">
             <div className="text-5xl mb-3 opacity-40">🎒</div>
             <p className="text-sm">Busca por nombre o apellido para ver el estado de cuenta.</p>
+            <div className="mt-6"><BotonActividades /></div>
           </div>
         )}
+
+        {/* Acceso a actividades también cuando ya hay un estado de cuenta en pantalla */}
+        {(estado || error) && !cargando && (
+          <div className="mt-8 text-center"><BotonActividades /></div>
+        )}
+
+        </>)}
 
         <div className="mt-16 text-center text-xs text-gray-400 dark:text-slate-600">
           Si un monto no coincide con lo que pagaste, avisa al tesorero del curso.

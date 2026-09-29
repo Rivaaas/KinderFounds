@@ -1,6 +1,8 @@
 const Student   = require('../models/Student');
 const Payment   = require('../models/Payment');
 const PettyCash = require('../models/PettyCash');
+const Activity  = require('../models/Activity');
+const { _construirNomina: construirNomina } = require('./activityController');
 const { isValidId } = require('../utils/validation');
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -142,5 +144,50 @@ exports.getStatement = async (req, res) => {
       })),
     },
     summary: { total, paid: pagado, pending: pendiente, surplus: Math.max(0, pagado - total), estado },
+  });
+};
+
+const TIPOS_ACTIVIDAD = {
+  '18_septiembre': '18 de Septiembre', navidad: 'Navidad', dia_nino: 'Día del Niño',
+  paseo: 'Paseo', cumpleanos: 'Cumpleaños', rifa: 'Rifa', otro: 'Otro',
+};
+
+// GET /api/public/activities
+// Actividades visibles con quiénes pagaron su cuota y quiénes no. Se devuelven
+// solo nombres y montos: nada de identificadores ni otros datos de los alumnos.
+// La tesorera decide qué actividades se exponen con `publicVisible`.
+exports.getActivities = async (req, res) => {
+  const activities = await Activity.find({ publicVisible: true })
+    .populate('students', 'name').sort({ date: -1 }).lean();
+  const pagos = await Payment.find({ type: 'actividad', activity: { $in: activities.map((a) => a._id) } })
+    .populate('student', 'name').select('activity student status amount date').lean();
+
+  const porActividad = new Map();
+  for (const p of pagos) {
+    const k = String(p.activity);
+    if (!porActividad.has(k)) porActividad.set(k, []);
+    porActividad.get(k).push(p);
+  }
+
+  const nombre = (r) => r.student.name;
+  res.json({
+    activities: activities.map((a) => {
+      const { roster, totals } = construirNomina(a, porActividad.get(String(a._id)) || []);
+      return {
+        name: a.name,
+        type: a.type,
+        typeLabel: TIPOS_ACTIVIDAD[a.type] || a.type,
+        date: a.date,
+        status: a.status,
+        description: a.description || '',
+        amountPerStudent: a.amountPerStudent || 0,
+        paid:    roster.filter((r) => r.status === 'paid').map(nombre),
+        pending: roster.filter((r) => r.status === 'pending').map(nombre),
+        totals: {
+          paidCount: totals.paidCount, pendingCount: totals.pendingCount,
+          collected: totals.collected, expected: totals.expected,
+        },
+      };
+    }),
   });
 };

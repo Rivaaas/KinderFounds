@@ -2,26 +2,82 @@ const Activity = require('../models/Activity');
 const Payment  = require('../models/Payment');
 const Expense  = require('../models/Expense');
 const Student  = require('../models/Student');
-const { parseDate, parseText, isValidId } = require('../utils/validation');
+const { parseDate, parseText, parseAmount, isValidId } = require('../utils/validation');
+
+// Cuota por alumno: opcional, admite 0 (actividad sin cobro).
+const parseCuota = (value) => {
+  if (value === undefined || value === null || value === '') return { value: undefined };
+  if (value === 0 || value === '0') return { value: 0 };
+  const m = parseAmount(value, 'cuota por alumno');
+  return m.error ? { error: m.error } : { value: m.value };
+};
+
+const ESTADOS_PAGO = ['paid', 'pending', 'cancelled'];
+
+// Lista de participantes con el estado de su cuota. Un alumno con pago registrado
+// pero que ya no figura en la lista de participantes se incluye igual: su dinero
+// existe y debe verse. Los anulados no cuentan como pagados ni como pendientes.
+const construirNomina = (activity, pagosActividad) => {
+  const porAlumno = new Map(pagosActividad.map((p) => [String(p.student?._id || p.student), p]));
+  const participantes = new Map((activity.students || []).map((s) => [String(s._id), s]));
+  for (const p of pagosActividad) {
+    const id = String(p.student?._id || p.student);
+    if (!participantes.has(id) && p.student?.name) participantes.set(id, p.student);
+  }
+
+  const roster = [...participantes.values()]
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'))
+    .map((s) => {
+      const p = porAlumno.get(String(s._id));
+      return {
+        student: { _id: s._id, name: s.name },
+        status: p ? p.status : 'pending',
+        amount: p ? p.amount : activity.amountPerStudent || 0,
+        date: p ? p.date : null,
+        paymentId: p ? p._id : null,
+      };
+    });
+
+  const paidCount    = roster.filter((r) => r.status === 'paid').length;
+  const pendingCount = roster.filter((r) => r.status === 'pending').length;
+  const collected    = roster.filter((r) => r.status === 'paid').reduce((s, r) => s + r.amount, 0);
+  const expected     = collected + roster.filter((r) => r.status === 'pending').reduce((s, r) => s + r.amount, 0);
+  return { roster, totals: { paidCount, pendingCount, collected, expected, pending: expected - collected } };
+};
+exports._construirNomina = construirNomina;
 
 exports.getAll = async (req, res) => {
-  const activities = await Activity.find().populate('students', 'name').sort({ date: -1 });
-  res.json(activities);
+  const activities = await Activity.find().populate('students', 'name').sort({ date: -1 }).lean();
+  // Resumen de recaudación por tarjeta, en una sola consulta para todas.
+  const pagos = await Payment.find({ type: 'actividad', activity: { $in: activities.map((a) => a._id) } })
+    .select('activity student status amount').lean();
+  const porActividad = new Map();
+  for (const p of pagos) {
+    const k = String(p.activity);
+    if (!porActividad.has(k)) porActividad.set(k, []);
+    porActividad.get(k).push(p);
+  }
+  res.json(activities.map((a) => {
+    const { totals } = construirNomina(a, porActividad.get(String(a._id)) || []);
+    return { ...a, totals };
+  }));
 };
 
 exports.getOne = async (req, res) => {
   const activity = await Activity.findById(req.params.id).populate('students', 'name');
   if (!activity) return res.status(404).json({ message: 'Actividad no encontrada.' });
 
-  const [income, expenses] = await Promise.all([
+  const [income, expenses, pagosActividad] = await Promise.all([
     Payment.find({ activity: activity._id, status: 'paid' }),
     Expense.find({ activity: activity._id }),
+    Payment.find({ activity: activity._id, type: 'actividad' }).populate('student', 'name'),
   ]);
 
   const totalIncome  = income.reduce((s, p) => s + p.amount, 0);
   const totalExpense = expenses.reduce((s, e) => s + e.amount, 0);
+  const { roster, totals } = construirNomina(activity, pagosActividad);
 
-  res.json({ activity, income, expenses, totalIncome, totalExpense, balance: totalIncome - totalExpense });
+  res.json({ activity, income, expenses, totalIncome, totalExpense, balance: totalIncome - totalExpense, roster, totals });
 };
 
 // Comprueba que todos los alumnos indicados existan antes de asociarlos.
@@ -51,9 +107,14 @@ exports.create = async (req, res) => {
   const alumnos = await validarAlumnos(students);
   if (alumnos.error) return res.status(400).json({ message: alumnos.error });
 
+  const cuota = parseCuota(req.body.amountPerStudent);
+  if (cuota.error) return res.status(400).json({ message: cuota.error });
+
   const activity = await Activity.create({
     name: nombre.value, type, date: fecha.value, description, observations,
     students: alumnos.value, status,
+    amountPerStudent: cuota.value,
+    publicVisible: req.body.publicVisible === undefined ? undefined : Boolean(req.body.publicVisible),
   });
   res.status(201).json(activity);
 };
@@ -76,6 +137,12 @@ exports.update = async (req, res) => {
     if (alumnos.error) return res.status(400).json({ message: alumnos.error });
     cambios.students = alumnos.value;
   }
+  if (req.body.amountPerStudent !== undefined) {
+    const cuota = parseCuota(req.body.amountPerStudent);
+    if (cuota.error) return res.status(400).json({ message: cuota.error });
+    cambios.amountPerStudent = cuota.value;
+  }
+  if (req.body.publicVisible !== undefined) cambios.publicVisible = Boolean(req.body.publicVisible);
   for (const campo of ['type', 'description', 'observations', 'status']) {
     if (req.body[campo] !== undefined) cambios[campo] = req.body[campo];
   }
@@ -105,4 +172,62 @@ exports.remove = async (req, res) => {
 
   await activity.deleteOne();
   res.json({ message: 'Actividad eliminada.' });
+};
+
+// PUT /activities/:id/students/:studentId/payment  { status, amount?, date? }
+//
+// Registra o actualiza la cuota de un alumno en la actividad. Es un "upsert": el
+// índice único alumno+actividad garantiza un solo registro aunque lleguen dos
+// clics simultáneos. El monto por defecto es la cuota de la actividad.
+exports.setStudentPayment = async (req, res) => {
+  const { id, studentId } = req.params;
+  if (!isValidId(studentId)) return res.status(400).json({ message: 'El alumno indicado no es válido.' });
+
+  const [activity, student] = await Promise.all([Activity.findById(id), Student.findById(studentId)]);
+  if (!activity) return res.status(404).json({ message: 'Actividad no encontrada.' });
+  if (!student)  return res.status(404).json({ message: 'Alumno no encontrado.' });
+
+  const status = req.body.status === undefined ? 'paid' : req.body.status;
+  if (!ESTADOS_PAGO.includes(status))
+    return res.status(400).json({ message: 'El estado debe ser paid, pending o cancelled.' });
+
+  let amount = activity.amountPerStudent || 0;
+  if (req.body.amount !== undefined && req.body.amount !== null && req.body.amount !== '') {
+    const m = parseAmount(req.body.amount);
+    if (m.error) return res.status(400).json({ message: m.error });
+    amount = m.value;
+  }
+  // El modelo exige monto > 0: una actividad sin cuota no puede registrar pagos.
+  if (amount <= 0)
+    return res.status(400).json({ message: 'Define la cuota por alumno de la actividad (o indica un monto) antes de registrar pagos.' });
+
+  const fecha = parseDate(req.body.date);
+  if (fecha.error) return res.status(400).json({ message: fecha.error });
+
+  const cambios = { amount, status, description: activity.name };
+  if (fecha.value) cambios.date = fecha.value;
+  else if (status === 'paid') cambios.date = new Date();
+
+  const payment = await Payment.findOneAndUpdate(
+    { type: 'actividad', activity: activity._id, student: student._id },
+    { $set: cambios, $setOnInsert: { type: 'actividad', activity: activity._id, student: student._id } },
+    { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
+  ).populate('student', 'name');
+
+  // Quien paga pasa a ser participante aunque no estuviera en la lista.
+  if (!activity.students.some((s) => String(s) === String(student._id))) {
+    await Activity.updateOne({ _id: activity._id }, { $addToSet: { students: student._id } });
+  }
+
+  res.json(payment);
+};
+
+// DELETE /activities/:id/students/:studentId/payment
+// Quita el registro de cuota del alumno (vuelve a "sin registro" = pendiente).
+exports.removeStudentPayment = async (req, res) => {
+  const { id, studentId } = req.params;
+  if (!isValidId(studentId)) return res.status(400).json({ message: 'El alumno indicado no es válido.' });
+  const borrado = await Payment.findOneAndDelete({ type: 'actividad', activity: id, student: studentId });
+  if (!borrado) return res.status(404).json({ message: 'Ese alumno no tiene cuota registrada en esta actividad.' });
+  res.json({ message: 'Registro eliminado.' });
 };
