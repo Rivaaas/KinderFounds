@@ -3,6 +3,7 @@ const Payment   = require('../models/Payment');
 const PettyCash = require('../models/PettyCash');
 const Activity  = require('../models/Activity');
 const Fine      = require('../models/Fine');
+const ActivityEarning = require('../models/ActivityEarning');
 const { FINE_REASON_LABELS } = require('./fineController');
 const { _construirNomina: construirNomina } = require('./activityController');
 const { isValidId } = require('../utils/validation');
@@ -168,7 +169,7 @@ exports.getStatement = async (req, res) => {
 
 const TIPOS_ACTIVIDAD = {
   '18_septiembre': '18 de Septiembre', navidad: 'Navidad', dia_nino: 'Día del Niño',
-  paseo: 'Paseo', cumpleanos: 'Cumpleaños', rifa: 'Rifa', otro: 'Otro',
+  paseo: 'Paseo', cumpleanos: 'Cumpleaños', rifa: 'Rifa', venta: 'Venta / Recaudación', otro: 'Otro',
 };
 
 // GET /api/public/activities
@@ -187,6 +188,10 @@ exports.getActivities = async (req, res) => {
     if (!porActividad.has(k)) porActividad.set(k, []);
     porActividad.get(k).push(p);
   }
+  // Lo que la actividad ganó por sí misma (una venta, por ejemplo): solo el total.
+  const ganancias = await ActivityEarning.find({ activity: { $in: activities.map((a) => a._id) } }).select('activity amount').lean();
+  const ganadoPor = new Map();
+  for (const g of ganancias) ganadoPor.set(String(g.activity), (ganadoPor.get(String(g.activity)) || 0) + g.amount);
 
   const nombre = (r) => r.student.name;
   res.json({
@@ -200,6 +205,7 @@ exports.getActivities = async (req, res) => {
         status: a.status,
         description: a.description || '',
         amountPerStudent: a.amountPerStudent || 0,
+        earned: ganadoPor.get(String(a._id)) || 0,
         paid:    roster.filter((r) => r.status === 'paid').map(nombre),
         pending: roster.filter((r) => r.status === 'pending').map(nombre),
         totals: {

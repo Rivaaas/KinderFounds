@@ -51,6 +51,7 @@ export const ACTIVITY_TYPE_LABELS = {
   paseo: 'Paseo',
   cumpleanos: 'Cumpleaños',
   rifa: 'Rifa',
+  venta: 'Venta / Recaudación',
   otro: 'Otro',
 };
 

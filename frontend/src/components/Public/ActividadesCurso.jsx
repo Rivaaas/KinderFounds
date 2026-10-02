@@ -58,6 +58,7 @@ function TarjetaActividad({ a, abiertaInicial }) {
             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-slate-400">
               <span className="flex items-center gap-1"><CalendarDays size={12} /> {formatDate(a.date)}</span>
               {conCuota && <span className="flex items-center gap-1"><Coins size={12} /> Cuota {formatCLP(a.amountPerStudent)} por alumno</span>}
+              {a.earned > 0 && <span className="flex items-center gap-1 text-kinder-green font-medium">Ganancia de la actividad: {formatCLP(a.earned)}</span>}
               <span className="flex items-center gap-1"><Users size={12} /> {total} participantes</span>
             </div>
             {a.description && <p className="mt-2 text-sm text-gray-600 dark:text-slate-300">{a.description}</p>}

@@ -10,11 +10,12 @@ const E = require('./qa-endurecimiento');
 const AC = require('./qa-actividades');
 const F = require('./qa-fondos');
 const M = require('./qa-multas');
+const G = require('./qa-ganancias');
 
 const SUITES = [
   A.suiteAuth, A.suiteAlumnos, A.suiteCuotas, A.suiteRegenerar,
   B.suiteCajaChica, B.suiteGastos, B.suiteActividades, B.suiteDescuentos,
-  B.suiteConsistencia, B.suiteDuplicacion, C.suiteContrato, C.suiteFechas, P.suitePublica, CC.suiteCajaChicaSeccion, V.suiteViewer, E.suiteEndurecimiento, AC.suiteActividades, F.suiteFondos, M.suiteMultas, B.suiteHostil, B.suiteIntegridad,
+  B.suiteConsistencia, B.suiteDuplicacion, C.suiteContrato, C.suiteFechas, P.suitePublica, CC.suiteCajaChicaSeccion, V.suiteViewer, E.suiteEndurecimiento, AC.suiteActividades, F.suiteFondos, M.suiteMultas, G.suiteGanancias, B.suiteHostil, B.suiteIntegridad,
 ];
 
 (async () => {

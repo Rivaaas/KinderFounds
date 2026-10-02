@@ -3,6 +3,7 @@ const Expense  = require('../models/Expense');
 const Student  = require('../models/Student');
 const Activity = require('../models/Activity');
 const Fine     = require('../models/Fine');
+const ActivityEarning = require('../models/ActivityEarning');
 const { getPettyCashLedger } = require('../utils/balances');
 
 exports.getGeneral = async (req, res) => {
@@ -68,18 +69,24 @@ exports.getByActivity = async (req, res) => {
   const activity = await Activity.findById(activityId);
   if (!activity) return res.status(404).json({ message: 'Actividad no encontrada.' });
 
-  const [income, expenses] = await Promise.all([
+  const [income, expenses, earnings] = await Promise.all([
     Payment.find({ activity: activityId, status: 'paid' }).populate('student', 'name'),
     Expense.find({ activity: activityId }),
+    ActivityEarning.find({ activity: activityId }).sort({ date: -1 }),
   ]);
 
+  const totalEarnings = earnings.reduce((s, g) => s + g.amount, 0);
+  const totalIncome   = income.reduce((s, p) => s + p.amount, 0) + totalEarnings;
+  const totalExpense  = expenses.reduce((s, e) => s + e.amount, 0);
   res.json({
     activity,
     income,
+    earnings,
     expenses,
-    totalIncome:  income.reduce((s, p) => s + p.amount, 0),
-    totalExpense: expenses.reduce((s, e) => s + e.amount, 0),
-    balance:      income.reduce((s, p) => s + p.amount, 0) - expenses.reduce((s, e) => s + e.amount, 0),
+    totalEarnings,
+    totalIncome,
+    totalExpense,
+    balance: totalIncome - totalExpense,
   });
 };
 

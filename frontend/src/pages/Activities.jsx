@@ -4,10 +4,12 @@ import toast from 'react-hot-toast';
 import Modal from '../components/UI/Modal';
 import ConfirmDialog from '../components/UI/ConfirmDialog';
 import { formatCLP, formatDate, ACTIVITY_TYPE_LABELS, todayISO } from '../utils/formatters';
+import FundPicker from '../components/UI/FundPicker';
+import { FUNDS, fundByKey } from '../config/funds';
 import { useAuth } from '../context/AuthContext';
 import {
   Plus, Pencil, Trash2, Zap, ArrowLeft, Check, Undo2, Eye, EyeOff,
-  Users, Coins, Search, RotateCcw,
+  Users, Coins, Search, RotateCcw, TrendingUp,
 } from 'lucide-react';
 
 // Actividades y Cuotas.
@@ -16,6 +18,11 @@ import {
 // Desde aquí se marca quién pagó y quién no; cada marca crea o actualiza un pago
 // de tipo 'actividad' asociado al alumno, que se suma en su estado de cuenta y
 // en la consulta pública del curso.
+//
+// Además, una actividad puede producir dinero por sí misma (venta de completos,
+// kermesse): esas "ganancias" se registran aparte, indicando a qué fondo entran.
+
+const GANANCIA_INICIAL = { amount: '', fund: 'actividades', date: todayISO(), description: '' };
 
 const STATUSES = { planned: 'Planificada', active: 'En curso', completed: 'Completada' };
 const STATUS_BADGE = {
@@ -63,6 +70,8 @@ export default function Activities() {
   const [soloPend,   setSoloPend]   = useState(false);
   const [ocupado,    setOcupado]    = useState(null); // studentId con acción en curso
   const [ajuste,     setAjuste]     = useState(null); // fila en edición de monto/fecha
+  const [ganancia,   setGanancia]   = useState(null); // formulario de ganancia (nueva o en edición)
+  const [borrarGan,  setBorrarGan]  = useState(null); // id de ganancia a eliminar
 
   const load = async () => {
     setLoading(true);
@@ -188,6 +197,50 @@ export default function Activities() {
     }
   };
 
+  // --- Ganancias de la actividad ------------------------------------------
+  const abrirGanancia = (g) => setGanancia(g
+    ? { _id: g._id, amount: g.amount, fund: g.fund, date: g.date?.slice(0, 10) || todayISO(), description: g.description || '' }
+    : { ...GANANCIA_INICIAL, date: detail?.activity?.date?.slice(0, 10) || todayISO() });
+
+  const guardarGanancia = async (e) => {
+    e.preventDefault();
+    if (!ganancia.amount || Number(ganancia.amount) <= 0) { toast.error('Ingresa cuánto se ganó.'); return; }
+    setSaving(true);
+    try {
+      const actId = detail.activity._id;
+      if (ganancia._id) {
+        await api.put(`/activities/${actId}/earnings/${ganancia._id}`, ganancia);
+        toast.success('Ganancia actualizada.');
+      } else {
+        await api.post(`/activities/${actId}/earnings`, ganancia);
+        toast.success(`Ganancia registrada: sumó a ${fundByKey(ganancia.fund).label}.`);
+      }
+      setGanancia(null);
+      await loadDetail(actId, true);
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Error al guardar la ganancia.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const eliminarGanancia = async () => {
+    setDeleting(true);
+    try {
+      const actId = detail.activity._id;
+      await api.delete(`/activities/${actId}/earnings/${borrarGan}`);
+      toast.success('Ganancia eliminada.');
+      setBorrarGan(null);
+      await loadDetail(actId, true);
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Error.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const guardarAjuste = async (e) => {
     e.preventDefault();
     const monto = Number(ajuste.amount);
@@ -205,6 +258,9 @@ export default function Activities() {
       (!filtro || f.student.name.toLowerCase().includes(filtro.toLowerCase()))
     );
     const sinCuota = !a?.amountPerStudent;
+    const gan = detail?.earnings || { total: 0, count: 0, byFund: {} };
+    const entradas = detail?.earningEntries || [];
+    const esVenta = a?.type === 'venta';
 
     return (
       <div className="space-y-5">
@@ -244,6 +300,8 @@ export default function Activities() {
                 )}
               </div>
 
+              {/* En una venta sin cuota por alumno las cifras de cuotas no aportan nada. */}
+              {!(esVenta && sinCuota) && <>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
                 {[
                   { label: 'Pagaron',   value: `${t.paidCount} de ${t.paidCount + t.pendingCount}`, color: 'text-kinder-green' },
@@ -258,15 +316,67 @@ export default function Activities() {
                 ))}
               </div>
               <div className="mt-4"><Progreso pagados={t.paidCount} total={t.paidCount + t.pendingCount} /></div>
+              </>}
 
-              {(detail.totalExpense > 0) && (
+              {(detail.totalExpense > 0 || gan.total > 0) && (
                 <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
+                  {gan.total > 0 && <>Ganancias: {formatCLP(gan.total)} · </>}
                   Gastos asociados: {formatCLP(detail.totalExpense)} · Saldo de la actividad: <strong>{formatCLP(detail.balance)}</strong>
                 </p>
               )}
             </div>
 
-            {sinCuota && canWrite && (
+            {/* Ganancias: cuánto produjo la actividad y a qué fondo se sumó */}
+            <div className="glass overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-kinder-border flex flex-wrap items-center gap-2">
+                <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2 mr-auto">
+                  <TrendingUp size={16} className="text-kinder-green" /> Ganancias de la actividad
+                </h3>
+                <span className="text-sm font-bold text-kinder-green tabular-nums">{formatCLP(gan.total)}</span>
+                {canWrite && (
+                  <button onClick={() => abrirGanancia(null)} className="btn-primary flex items-center gap-1.5 text-sm py-1.5">
+                    <Plus size={14} /> Registrar ganancia
+                  </button>
+                )}
+              </div>
+              {gan.total > 0 && (
+                <ul className="flex flex-wrap gap-2 px-4 py-3 border-b border-gray-100 dark:border-kinder-border">
+                  {FUNDS.map((f) => (gan.byFund?.[f.key] || 0) > 0 && (
+                    <li key={f.key} className={`px-2.5 py-1 rounded-full text-xs font-semibold tabular-nums ${f.badge}`}>
+                      {f.emoji} {f.short}: {formatCLP(gan.byFund[f.key])}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {entradas.length === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-gray-400 dark:text-slate-500">
+                  {esVenta
+                    ? 'Todavía no registras cuánto se ganó. Usa "Registrar ganancia" e indica a qué fondo se suma.'
+                    : 'Sin ganancias registradas. Si la actividad produjo dinero (una venta, por ejemplo), regístralo aquí.'}
+                </p>
+              ) : (
+                <ul className="divide-y divide-gray-50 dark:divide-kinder-border">
+                  {entradas.map((g) => {
+                    const f = fundByKey(g.fund);
+                    return (
+                      <li key={g._id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
+                        <span className="font-semibold text-kinder-green tabular-nums w-28">{formatCLP(g.amount)}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${f.badge}`}>{f.emoji} → {f.label}</span>
+                        <span className="text-gray-500 dark:text-slate-400 text-xs">{formatDate(g.date)}{g.description ? ` · ${g.description}` : ''}</span>
+                        {canWrite && (
+                          <span className="ml-auto flex gap-1">
+                            <button onClick={() => abrirGanancia(g)} className="p-1.5 text-kinder-lavender hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg" title="Editar"><Pencil size={14} /></button>
+                            <button onClick={() => setBorrarGan(g._id)} className="p-1.5 text-kinder-coral hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg" title="Eliminar"><Trash2 size={14} /></button>
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            {sinCuota && !esVenta && canWrite && (
               <div className="rounded-xl border border-amber-300/60 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700/50 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
                 Esta actividad no tiene cuota por alumno. Edítala y define el monto para poder marcar pagos con un clic
                 (o usa "Otro monto" en cada alumno).
@@ -373,6 +483,35 @@ export default function Activities() {
           )}
         </Modal>
 
+        {/* Registrar / editar ganancia */}
+        <Modal open={!!ganancia} onClose={() => setGanancia(null)} title={ganancia?._id ? 'Editar ganancia' : `¿Cuánto se ganó en "${a?.name || ''}"?`}>
+          {ganancia && (
+            <form onSubmit={guardarGanancia} className="space-y-4">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">Monto ganado (CLP) *</label>
+                  <input type="number" min="1" value={ganancia.amount} onChange={(e) => setGanancia({ ...ganancia, amount: e.target.value })} className="input-field text-lg font-semibold" placeholder="0" autoFocus />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">Fecha</label>
+                  <input type="date" value={ganancia.date} onChange={(e) => setGanancia({ ...ganancia, date: e.target.value })} className="input-field" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">Descripción (opcional)</label>
+                <input value={ganancia.description} onChange={(e) => setGanancia({ ...ganancia, description: e.target.value })} className="input-field" placeholder="Ej: Venta del sábado, 120 completos" />
+              </div>
+              <FundPicker value={ganancia.fund} onChange={(fund) => setGanancia({ ...ganancia, fund })} label="¿A qué fondo se suma? *" />
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setGanancia(null)} className="flex-1 btn-ghost border border-gray-200 dark:border-kinder-border">Cancelar</button>
+                <button type="submit" className="flex-1 btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</button>
+              </div>
+            </form>
+          )}
+        </Modal>
+        <ConfirmDialog open={!!borrarGan} onClose={() => setBorrarGan(null)} onConfirm={eliminarGanancia} loading={deleting}
+          message="¿Eliminar esta ganancia? El monto saldrá del fondo al que se había sumado." />
+
         {renderFormModal()}
         <ConfirmDialog open={!!confirmId} onClose={() => setConfirmId(null)} onConfirm={handleDelete} loading={deleting} message="¿Eliminar esta actividad?" />
       </div>
@@ -399,6 +538,11 @@ export default function Activities() {
               <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="select-field">
                 {Object.entries(ACTIVITY_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
+              {form.type === 'venta' && (
+                <p className="mt-1 text-[11px] text-gray-500 dark:text-slate-400">
+                  Una venta produce dinero por sí misma: al guardarla, entra al detalle y usa "Registrar ganancia" para anotar cuánto se ganó y a qué fondo se suma.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">Fecha *</label>
@@ -503,6 +647,13 @@ export default function Activities() {
                   </>
                 ) : (
                   <div className="text-xs text-gray-400 dark:text-slate-500">{a.students?.length || 0} participantes · sin cuota</div>
+                )}
+                {a.earnings?.total > 0 && (
+                  <div className="mt-2 flex items-center gap-1.5 text-sm">
+                    <TrendingUp size={14} className="text-kinder-green" />
+                    <span className="text-gray-600 dark:text-slate-300">Ganado</span>
+                    <span className="font-semibold text-kinder-green tabular-nums ml-auto">{formatCLP(a.earnings.total)}</span>
+                  </div>
                 )}
 
                 <div className="flex items-center justify-between border-t border-gray-100 dark:border-kinder-border pt-3 mt-3">

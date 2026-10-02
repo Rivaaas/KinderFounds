@@ -5,7 +5,9 @@ const activitySchema = new mongoose.Schema({
   name:        { type: String, required: true, trim: true },
   type:        {
     type: String,
-    enum: ['18_septiembre', 'navidad', 'dia_nino', 'paseo', 'cumpleanos', 'rifa', 'otro'],
+    // 'venta' = actividad que produce dinero por sí misma (venta de completos,
+    // kermesse...): sus ganancias se registran en ActivityEarning.
+    enum: ['18_septiembre', 'navidad', 'dia_nino', 'paseo', 'cumpleanos', 'rifa', 'venta', 'otro'],
     default: 'otro',
   },
   date:        { type: Date, required: true },

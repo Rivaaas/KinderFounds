@@ -38,6 +38,8 @@ const ESCRITURAS = [
   ['PUT',    `/fines/${ID_INEXISTENTE}/unpay`,     {}],
   ['DELETE', `/fines/${ID_INEXISTENTE}`,           null],
   ['POST',   '/activities',                        {}],
+  ['POST',   `/activities/${ID_INEXISTENTE}/earnings`, {}],
+  ['DELETE', `/activities/${ID_INEXISTENTE}/earnings/${ID_INEXISTENTE}`, null],
   ['PUT',    `/activities/${ID_INEXISTENTE}`,      {}],
   ['DELETE', `/activities/${ID_INEXISTENTE}`,      null],
   ['POST',   '/users',                             {}],

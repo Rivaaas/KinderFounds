@@ -3,6 +3,7 @@ const Expense   = require('../models/Expense');
 const Student   = require('../models/Student');
 const Discount  = require('../models/Discount');
 const Fine      = require('../models/Fine');
+const ActivityEarning = require('../models/ActivityEarning');
 const { sum, getPettyCashLedger } = require('../utils/balances');
 const { currentMonthLocal } = require('../utils/constants');
 const { FUND_LABELS, normalizeFund } = require('../utils/funds');
@@ -20,13 +21,14 @@ const fondoDePago = (p) => {
 const fondoDe = (valor) => normalizeFund(valor) || 'cuotas';
 
 exports.getSummary = async (req, res) => {
-  const [students, payments, expenses, pettyCash, discounts, fines] = await Promise.all([
+  const [students, payments, expenses, pettyCash, discounts, fines, earnings] = await Promise.all([
     Student.find(),
     Payment.find({ status: 'paid' }),
     Expense.find(),
     getPettyCashLedger(),
     Discount.find(),
     Fine.find({ status: { $ne: 'cancelled' } }),
+    ActivityEarning.find(),
   ]);
 
   const activeStudents = students.filter(s => s.status === 'active').length;
@@ -39,9 +41,15 @@ exports.getSummary = async (req, res) => {
   const finesActividades = sum(finesPaid.filter(f => f.paidFund === 'actividades'));
   const finesPettyCash   = sum(finesPaid.filter(f => f.paidFund === 'caja_chica'));
 
-  // --- Ingresos por fondo (pagos + multas cobradas a ese fondo) -----------
-  const monthlyIncome    = sum(payments.filter(p => fondoDePago(p) === 'cuotas')) + finesCuotas;
-  const activitiesIncome = sum(payments.filter(p => fondoDePago(p) === 'actividades')) + finesActividades;
+  // --- Ganancias de actividades (venta de completos, rifa...): entran al
+  // fondo elegido al registrarlas.
+  const earningsCuotas      = sum(earnings.filter(g => g.fund === 'cuotas'));
+  const earningsActividades = sum(earnings.filter(g => g.fund === 'actividades'));
+  const earningsPettyCash   = sum(earnings.filter(g => g.fund === 'caja_chica'));
+
+  // --- Ingresos por fondo (pagos + multas cobradas + ganancias de actividades)
+  const monthlyIncome    = sum(payments.filter(p => fondoDePago(p) === 'cuotas')) + finesCuotas + earningsCuotas;
+  const activitiesIncome = sum(payments.filter(p => fondoDePago(p) === 'actividades')) + finesActividades + earningsActividades;
 
   // --- Gastos por fondo: cada gasto descuenta del fondo elegido al registrarlo.
   const expensesCuotas      = sum(expenses.filter(e => fondoDe(e.fund) === 'cuotas'));
@@ -73,17 +81,17 @@ exports.getSummary = async (req, res) => {
   const funds = [
     {
       key: 'cuotas', label: FUND_LABELS.cuotas,
-      income: monthlyIncome, fines: finesCuotas, expenses: expensesCuotas, discounts: discountsCuotas, balance: balanceCuotas,
+      income: monthlyIncome, fines: finesCuotas, earnings: earningsCuotas, expenses: expensesCuotas, discounts: discountsCuotas, balance: balanceCuotas,
     },
     {
       key: 'actividades', label: FUND_LABELS.actividades,
-      income: activitiesIncome, fines: finesActividades, expenses: expensesActividades, discounts: discountsActividades, balance: balanceActividades,
+      income: activitiesIncome, fines: finesActividades, earnings: earningsActividades, expenses: expensesActividades, discounts: discountsActividades, balance: balanceActividades,
     },
     {
       key: 'caja_chica', label: FUND_LABELS.caja_chica,
       initialBalance: pettyCash.initialBalance,
       // El libro de caja chica ya incluye las multas cobradas a ese fondo.
-      income: pettyCashIncome, fines: finesPettyCash,
+      income: pettyCashIncome, fines: finesPettyCash, earnings: earningsPettyCash,
       // Para caja chica, "gastos" son gastos + egresos directos: así el saldo de
       // la tarjeta se explica con sus propias filas.
       expenses: pettyCashExpenses + pettyCashMovementsOut,
@@ -111,6 +119,11 @@ exports.getSummary = async (req, res) => {
       pendingCount: fines.filter(f => f.status === 'pending').length,
       paid: finesCuotas + finesActividades + finesPettyCash,
       byFund: { cuotas: finesCuotas, actividades: finesActividades, caja_chica: finesPettyCash },
+    },
+    activityEarnings: {
+      total: earningsCuotas + earningsActividades + earningsPettyCash,
+      count: earnings.length,
+      byFund: { cuotas: earningsCuotas, actividades: earningsActividades, caja_chica: earningsPettyCash },
     },
     income: {
       monthly: monthlyIncome,
@@ -159,11 +172,12 @@ exports.getMonthlyChart = async (req, res) => {
   const hasta = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
   const rango = { date: { $gte: desde, $lte: hasta } };
 
-  const [payments, expenses, discounts, fines] = await Promise.all([
+  const [payments, expenses, discounts, fines, earnings] = await Promise.all([
     Payment.find({ status: 'paid', ...rango }),
     Expense.find(rango),
     Discount.find(rango),
     Fine.find({ status: 'paid', paidAt: rango.date }),
+    ActivityEarning.find(rango),
   ]);
 
   // La atribución del mes se hace en UTC porque así se guardan las fechas que
@@ -180,16 +194,19 @@ exports.getMonthlyChart = async (req, res) => {
     const pagos  = payments.filter(p => enMes(p.date, i));
     const gastos = expenses.filter(e => enMes(e.date, i));
     const multas = fines.filter(f => enMes(f.paidAt, i));
+    const ganancias = earnings.filter(g => enMes(g.date, i));
+    const porFondo = (k) => sum(multas.filter(f => f.paidFund === k)) + sum(ganancias.filter(g => g.fund === k));
     return {
       month: label,
-      income:   sum(pagos) + sum(multas),
+      income:   sum(pagos) + sum(multas) + sum(ganancias),
       fines:    sum(multas),
+      earnings: sum(ganancias),
       expense:  sum(gastos),
       discount: sum(discounts.filter(d => enMes(d.date, i))),
       // Desglose por fondo para el gráfico del dashboard.
-      incomeCuotas:      sum(pagos.filter(p => fondoDePago(p) === 'cuotas'))      + sum(multas.filter(f => f.paidFund === 'cuotas')),
-      incomeActividades: sum(pagos.filter(p => fondoDePago(p) === 'actividades')) + sum(multas.filter(f => f.paidFund === 'actividades')),
-      incomeCajaChica:   sum(pagos.filter(p => fondoDePago(p) === 'caja_chica'))  + sum(multas.filter(f => f.paidFund === 'caja_chica')),
+      incomeCuotas:      sum(pagos.filter(p => fondoDePago(p) === 'cuotas'))      + porFondo('cuotas'),
+      incomeActividades: sum(pagos.filter(p => fondoDePago(p) === 'actividades')) + porFondo('actividades'),
+      incomeCajaChica:   sum(pagos.filter(p => fondoDePago(p) === 'caja_chica'))  + porFondo('caja_chica'),
       expenseCuotas:      sum(gastos.filter(e => fondoDe(e.fund) === 'cuotas')),
       expenseActividades: sum(gastos.filter(e => fondoDe(e.fund) === 'actividades')),
       expenseCajaChica:   sum(gastos.filter(e => fondoDe(e.fund) === 'caja_chica')),
