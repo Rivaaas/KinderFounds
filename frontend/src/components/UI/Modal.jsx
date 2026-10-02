@@ -10,11 +10,12 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
       <div className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className={`
         relative w-full ${sizes[size]} animate-fadeIn
+        max-h-[92vh] flex flex-col
         bg-white dark:bg-kinder-card
         border border-gray-100 dark:border-kinder-border
         rounded-2xl shadow-xl dark:shadow-card-dark
       `}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-kinder-border">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 shrink-0 border-b border-gray-100 dark:border-kinder-border">
           <h2 className="text-base font-bold text-gray-800 dark:text-white">{title}</h2>
           <button
             onClick={onClose}
@@ -23,7 +24,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
             <X size={18} />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-4 sm:p-6 overflow-y-auto">{children}</div>
       </div>
     </div>
   );

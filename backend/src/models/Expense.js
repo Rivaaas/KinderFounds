@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { MAX_AMOUNT } = require('../utils/constants');
+const { FUND_VALUES } = require('../utils/funds');
 
 const expenseSchema = new mongoose.Schema({
   category:    {
@@ -11,7 +12,9 @@ const expenseSchema = new mongoose.Schema({
   date:        { type: Date, required: true, default: Date.now },
   description: { type: String, required: true },
   paymentMethod: { type: String, enum: ['efectivo', 'transferencia', 'debito', 'credito', 'otro'], default: 'efectivo' },
-  fund:        { type: String, enum: ['general', 'caja_chica'], default: 'general' },
+  // Fondo del que sale el dinero (ver utils/funds.js). 'general' solo sobrevive
+  // en registros antiguos y se interpreta como 'cuotas'.
+  fund:        { type: String, enum: FUND_VALUES, default: 'cuotas' },
   activity:    { type: mongoose.Schema.Types.ObjectId, ref: 'Activity' },
   // Huella del envío: el índice único convierte la detección de duplicados en atómica.
   dedupeKey:   { type: String, index: { unique: true, sparse: true } },

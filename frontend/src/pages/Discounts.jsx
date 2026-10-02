@@ -5,6 +5,8 @@ import Modal from '../components/UI/Modal';
 import ConfirmDialog from '../components/UI/ConfirmDialog';
 import Table from '../components/UI/Table';
 import { formatCLP } from '../utils/formatters';
+import { FUNDS, fundByKey, normalizeFund } from '../config/funds';
+import FundPicker from '../components/UI/FundPicker';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Pencil, Trash2, Tag } from 'lucide-react';
 
@@ -16,17 +18,12 @@ const CATEGORIES = {
   otro:        'Otro',
 };
 
-const SOURCES = {
-  cuotas_mensuales: 'Cuotas Mensuales',
-  caja_chica:       'Caja Chica',
-};
-
-const INITIAL = { description: '', amount: '', source: 'cuotas_mensuales', category: 'otro' };
+const INITIAL = { description: '', amount: '', source: 'cuotas', category: 'otro' };
 
 export default function Discounts() {
   const { canWrite } = useAuth();
   const [discounts,  setDiscounts]  = useState([]);
-  const [totals,     setTotals]     = useState({ total: 0, totalFromFees: 0, totalFromPettyCash: 0 });
+  const [totals,     setTotals]     = useState({ total: 0, byFund: {} });
   const [loading,    setLoading]    = useState(true);
   const [modal,      setModal]      = useState(null);
   const [selected,   setSelected]   = useState(null);
@@ -42,7 +39,7 @@ export default function Discounts() {
       const q = filterSrc ? `?source=${filterSrc}` : '';
       const { data } = await api.get(`/discounts${q}`);
       setDiscounts(data.discounts);
-      setTotals({ total: data.total, totalFromFees: data.totalFromFees, totalFromPettyCash: data.totalFromPettyCash });
+      setTotals({ total: data.total, byFund: data.byFund || {} });
     } catch (err) {
       toast.error(err?.response?.data?.message || 'No se pudieron cargar los datos.');
     } finally {
@@ -53,7 +50,7 @@ export default function Discounts() {
   useEffect(() => { load(); }, [filterSrc]);
 
   const openCreate = () => { setForm(INITIAL); setModal('create'); };
-  const openEdit   = (d)  => { setSelected(d); setForm({ description: d.description, amount: d.amount, source: d.source, category: d.category }); setModal('edit'); };
+  const openEdit   = (d)  => { setSelected(d); setForm({ description: d.description, amount: d.amount, source: normalizeFund(d.source), category: d.category }); setModal('edit'); };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -94,15 +91,10 @@ export default function Discounts() {
     { key: 'amount', label: 'Monto', render: (v) => (
       <span className="font-semibold text-rose-400">{formatCLP(v)}</span>
     )},
-    { key: 'source', label: 'Se descuenta de', render: (v) => (
-      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold
-        ${v === 'cuotas_mensuales'
-          ? 'bg-purple-500/20 text-purple-300'
-          : 'bg-pink-500/20 text-pink-300'
-        }`}>
-        {SOURCES[v]}
-      </span>
-    )},
+    { key: 'source', label: 'Se descuenta de', render: (v) => {
+      const f = fundByKey(v);
+      return <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${f.badge}`}>{f.emoji} {f.label}</span>;
+    }},
     ...(canWrite ? [{ key: 'actions', label: '', render: (_, row) => (
       <div className="flex gap-1">
         <button onClick={() => openEdit(row)} className="p-1.5 text-purple-400 hover:bg-purple-400/10 rounded-lg"><Pencil size={14} /></button>
@@ -114,36 +106,33 @@ export default function Discounts() {
   return (
     <div className="space-y-5">
       {/* Resumen */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="glass p-5 bg-gradient-to-br from-rose-900/30 to-rose-800/10 col-span-1 sm:col-span-1">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="glass p-4 sm:p-5 bg-gradient-to-br from-rose-900/30 to-rose-800/10 min-w-0">
           <div className="text-xs text-white/50 mb-1">Total Descontado</div>
-          <div className="text-2xl font-bold text-rose-400">{formatCLP(totals.total)}</div>
+          <div className="text-xl sm:text-2xl font-bold text-rose-400 tabular-nums break-words">{formatCLP(totals.total)}</div>
         </div>
-        <div className="glass p-5 bg-gradient-to-br from-purple-900/30 to-purple-800/10">
-          <div className="text-xs text-white/50 mb-1">De Cuotas Mensuales</div>
-          <div className="text-2xl font-bold text-purple-400">{formatCLP(totals.totalFromFees)}</div>
-        </div>
-        <div className="glass p-5 bg-gradient-to-br from-pink-900/30 to-pink-800/10">
-          <div className="text-xs text-white/50 mb-1">De Caja Chica</div>
-          <div className="text-2xl font-bold text-pink-400">{formatCLP(totals.totalFromPettyCash)}</div>
-        </div>
+        {FUNDS.map((f) => (
+          <div key={f.key} className="glass p-4 sm:p-5 min-w-0 border-t-4" style={{ borderTopColor: f.color }}>
+            <div className="text-xs text-white/50 mb-1">{f.emoji} De {f.label}</div>
+            <div className={`text-xl sm:text-2xl font-bold tabular-nums break-words ${f.text}`}>{formatCLP(totals.byFund[f.key] || 0)}</div>
+          </div>
+        ))}
       </div>
 
       {/* Info */}
       <div className="glass p-4 bg-amber-500/5 border border-amber-500/20 text-sm text-amber-300/80 flex gap-2 items-start">
         <Tag size={15} className="mt-0.5 shrink-0 text-amber-400" />
-        <span>Los descuentos reducen automáticamente el saldo del fondo elegido: <strong>Cuotas Mensuales</strong> afecta el saldo general, <strong>Caja Chica</strong> afecta el saldo de caja chica.</span>
+        <span>Cada descuento reduce el saldo del fondo que elijas: <strong>Cuotas Mensuales</strong>, <strong>Actividades</strong> o <strong>Caja Chica</strong>. El dashboard muestra el total de descuentos y el detalle por fondo.</span>
       </div>
 
       {/* Toolbar */}
       <div className="flex flex-wrap gap-3">
-        <select value={filterSrc} onChange={e => setFilterSrc(e.target.value)} className="select-field w-auto">
+        <select value={filterSrc} onChange={e => setFilterSrc(e.target.value)} className="select-field w-full sm:w-auto">
           <option value="">Todos los fondos</option>
-          <option value="cuotas_mensuales">Cuotas Mensuales</option>
-          <option value="caja_chica">Caja Chica</option>
+          {FUNDS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
         </select>
         {canWrite && (
-          <button onClick={openCreate} className="btn-primary flex items-center gap-2 ml-auto">
+          <button onClick={openCreate} className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto sm:ml-auto">
             <Plus size={16} /> Nuevo Descuento
           </button>
         )}
@@ -161,7 +150,7 @@ export default function Discounts() {
         open={modal === 'create' || modal === 'edit'}
         onClose={() => setModal(null)}
         title={modal === 'create' ? 'Nuevo Descuento' : 'Editar Descuento'}
-        size="sm"
+        size="md"
       >
         <form onSubmit={handleSave} className="space-y-4">
           <div>
@@ -194,29 +183,8 @@ export default function Discounts() {
             />
           </div>
 
-          {/* Selector de fondo */}
-          <div>
-            <label className="block text-xs text-white/60 mb-2">Descontar de *</label>
-            <div className="flex gap-3">
-              {[
-                { value: 'cuotas_mensuales', label: '📋 Cuotas Mensuales', active: 'bg-purple-500/20 border-purple-500/60 text-purple-300' },
-                { value: 'caja_chica',       label: '🐷 Caja Chica',       active: 'bg-pink-500/20 border-pink-500/60 text-pink-300' },
-              ].map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setForm({ ...form, source: opt.value })}
-                  className={`flex-1 py-3 px-2 rounded-xl text-sm font-medium border transition-all duration-200
-                    ${form.source === opt.value
-                      ? opt.active
-                      : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'
-                    }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Selector de fondo: muestra el saldo de cada uno antes de elegir. */}
+          <FundPicker value={form.source} onChange={(source) => setForm({ ...form, source })} amount={form.amount} />
 
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={() => setModal(null)} className="flex-1 btn-ghost border border-white/20">

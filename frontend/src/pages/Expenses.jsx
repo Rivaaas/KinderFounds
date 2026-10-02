@@ -4,12 +4,14 @@ import toast from 'react-hot-toast';
 import Modal from '../components/UI/Modal';
 import ConfirmDialog from '../components/UI/ConfirmDialog';
 import Table from '../components/UI/Table';
-import { formatCLP, formatDate, EXPENSE_CATEGORY_LABELS, FUND_LABELS, todayISO } from '../utils/formatters';
+import { formatCLP, formatDate, EXPENSE_CATEGORY_LABELS, todayISO } from '../utils/formatters';
+import { FUNDS, fundByKey, normalizeFund } from '../config/funds';
+import FundPicker from '../components/UI/FundPicker';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 
 const PAYMENT_METHODS = { efectivo: 'Efectivo', transferencia: 'Transferencia', debito: 'Débito', credito: 'Crédito', otro: 'Otro' };
-const INITIAL = { category: 'compra_actividad', amount: '', date: todayISO(), description: '', paymentMethod: 'efectivo', fund: 'general' };
+const INITIAL = { category: 'compra_actividad', amount: '', date: todayISO(), description: '', paymentMethod: 'efectivo', fund: 'cuotas' };
 
 export default function Expenses() {
   const { canWrite } = useAuth();
@@ -42,7 +44,8 @@ export default function Expenses() {
   useEffect(() => { load(); }, [filterFund, filterCat]);
 
   const openCreate = () => { setForm({ ...INITIAL, date: todayISO() }); setModal('create'); };
-  const openEdit   = (e)  => { setSelected(e); setForm({ ...e, date: e.date?.slice(0,10) }); setModal('edit'); };
+  // Los gastos antiguos con fondo "general" se muestran y guardan como cuotas.
+  const openEdit   = (e)  => { setSelected(e); setForm({ ...e, fund: normalizeFund(e.fund), date: e.date?.slice(0,10) }); setModal('edit'); };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -76,17 +79,19 @@ export default function Expenses() {
     } catch { toast.error('Error.'); } finally { setDeleting(false); }
   };
 
-  const totalGeneral = expenses.filter(e=>e.fund==='general').reduce((s,e)=>s+e.amount, 0);
-  const totalPettyCash = expenses.filter(e=>e.fund==='caja_chica').reduce((s,e)=>s+e.amount, 0);
+  const totalPorFondo = Object.fromEntries(FUNDS.map((f) => [f.key, 0]));
+  for (const e of expenses) totalPorFondo[normalizeFund(e.fund)] = (totalPorFondo[normalizeFund(e.fund)] || 0) + e.amount;
+  const totalGastos = expenses.reduce((s, e) => s + e.amount, 0);
 
   const columns = [
     { key: 'description', label: 'Descripción' },
     { key: 'category', label: 'Categoría', render: (v) => EXPENSE_CATEGORY_LABELS[v] || v },
     { key: 'amount', label: 'Monto', render: (v) => <span className="text-rose-400 font-medium">{formatCLP(v)}</span> },
     { key: 'date', label: 'Fecha', render: (v) => formatDate(v) },
-    { key: 'fund', label: 'Fondo', render: (v) => (
-      <span className={v==='general'?'badge-paid':'badge-pending'}>{FUND_LABELS[v]}</span>
-    )},
+    { key: 'fund', label: 'Salió de', render: (v) => {
+      const f = fundByKey(v);
+      return <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${f.badge}`}>{f.emoji} {f.label}</span>;
+    }},
     { key: 'paymentMethod', label: 'Medio', render: (v) => PAYMENT_METHODS[v] || v },
     ...(canWrite ? [{ key: 'actions', label: '', render: (_, row) => (
       <div className="flex gap-1">
@@ -99,30 +104,28 @@ export default function Expenses() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap gap-3">
-        <select value={filterFund} onChange={(e)=>setFilterFund(e.target.value)} className="select-field w-auto">
+        <select value={filterFund} onChange={(e)=>setFilterFund(e.target.value)} className="select-field w-full sm:w-auto">
           <option value="">Todos los fondos</option>
-          <option value="general">Fondo General</option>
-          <option value="caja_chica">Caja Chica</option>
+          {FUNDS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
         </select>
-        <select value={filterCat} onChange={(e)=>setFilterCat(e.target.value)} className="select-field w-auto">
+        <select value={filterCat} onChange={(e)=>setFilterCat(e.target.value)} className="select-field w-full sm:w-auto">
           <option value="">Todas las categorías</option>
           {Object.entries(EXPENSE_CATEGORY_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
         </select>
         {canWrite && (
-          <button onClick={openCreate} className="btn-primary flex items-center gap-2 ml-auto">
+          <button onClick={openCreate} className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto sm:ml-auto">
             <Plus size={16} /> Nuevo Gasto
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
-          { label: 'Total Gastos', value: formatCLP(totalGeneral + totalPettyCash), color: 'text-rose-400' },
-          { label: 'Fondo General', value: formatCLP(totalGeneral), color: 'text-purple-400' },
-          { label: 'Caja Chica', value: formatCLP(totalPettyCash), color: 'text-pink-400' },
+          { label: 'Total Gastos', value: formatCLP(totalGastos), color: 'text-rose-400' },
+          ...FUNDS.map((f) => ({ label: `${f.emoji} ${f.label}`, value: formatCLP(totalPorFondo[f.key] || 0), color: f.text })),
         ].map(({ label, value, color }) => (
-          <div key={label} className="glass p-4 text-center">
-            <div className={`text-xl font-bold ${color}`}>{value}</div>
+          <div key={label} className="glass p-3 sm:p-4 text-center min-w-0">
+            <div className={`text-lg sm:text-xl font-bold tabular-nums break-words ${color}`}>{value}</div>
             <div className="text-xs text-white/50 mt-1">{label}</div>
           </div>
         ))}
@@ -158,18 +161,13 @@ export default function Expenses() {
                 {Object.entries(PAYMENT_METHODS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-xs text-white/60 mb-1">Descontar de</label>
-              <select value={form.fund} onChange={(e)=>setForm({...form,fund:e.target.value})} className="select-field">
-                <option value="general">Fondo General</option>
-                <option value="caja_chica">Caja Chica</option>
-              </select>
-            </div>
           </div>
           <div>
             <label className="block text-xs text-white/60 mb-1">Descripción *</label>
             <input value={form.description} onChange={(e)=>setForm({...form,description:e.target.value})} className="input-field" placeholder="Describe el gasto..." />
           </div>
+          {/* De qué fondo sale el dinero: se ve el saldo de cada uno antes de elegir. */}
+          <FundPicker value={form.fund} onChange={(fund)=>setForm({...form,fund})} amount={form.amount} label="Sacar el dinero de *" />
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={()=>setModal(null)} className="flex-1 btn-ghost border border-white/20">Cancelar</button>
             <button type="submit" className="flex-1 btn-primary" disabled={saving}>{saving?'Guardando...':'Guardar'}</button>

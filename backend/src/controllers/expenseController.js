@@ -1,12 +1,15 @@
 const Expense = require('../models/Expense');
 const Activity = require('../models/Activity');
 const { parseAmount, parseDate, parseText, referenceExists, createDeduplicated } = require('../utils/validation');
+const { parseFund, fundQuery } = require('../utils/funds');
 
 exports.getAll = async (req, res) => {
   const filter = {};
-  for (const campo of ['category', 'fund']) {
-    const v = req.query[campo];
-    if (typeof v === 'string' && v) filter[campo] = v;
+  if (typeof req.query.category === 'string' && req.query.category) filter.category = req.query.category;
+  if (typeof req.query.fund === 'string' && req.query.fund) {
+    const q = fundQuery(req.query.fund);
+    if (!q) return res.status(400).json({ message: 'El fondo indicado no existe.' });
+    filter.fund = q;
   }
 
   const { from, to } = req.query;
@@ -51,15 +54,19 @@ exports.create = async (req, res) => {
   const act = await referenceExists(Activity, activity, 'actividad');
   if (act.error) return res.status(400).json({ message: act.error });
 
+  // El fondo lo elige quien registra el gasto; si no viene, sale de cuotas.
+  const fondo = parseFund(fund);
+  if (fondo.error) return res.status(400).json({ message: fondo.error });
+
   const resultado = await createDeduplicated(
     Expense,
     {
       category, amount: monto.value, date: fecha.value, description: desc.value,
-      paymentMethod, fund, activity: act.value,
+      paymentMethod, fund: fondo.value || 'cuotas', activity: act.value,
     },
     {
       criterio: { category, amount: monto.value, description: desc.value },
-      huella: [category, monto.value, desc.value, fund, act.value],
+      huella: [category, monto.value, desc.value, fondo.value || 'cuotas', act.value],
       mensaje: 'Este gasto ya se registró hace unos segundos. Revisa el listado antes de reintentar.',
     }
   );
@@ -91,7 +98,12 @@ exports.update = async (req, res) => {
     if (act.error) return res.status(400).json({ message: act.error });
     cambios.activity = act.value || null;
   }
-  for (const campo of ['category', 'paymentMethod', 'fund']) {
+  if (req.body.fund !== undefined) {
+    const fondo = parseFund(req.body.fund, { required: true });
+    if (fondo.error) return res.status(400).json({ message: fondo.error });
+    cambios.fund = fondo.value;
+  }
+  for (const campo of ['category', 'paymentMethod']) {
     if (req.body[campo] !== undefined) cambios[campo] = req.body[campo];
   }
 

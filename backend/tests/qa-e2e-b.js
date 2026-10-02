@@ -76,12 +76,14 @@ async function suiteGastos() {
   }
   record(true, 'Se registran 5 gastos reales del fondo general', '$' + libro.gastoGeneral.toLocaleString('es-CL'));
 
+  // El valor heredado 'general' se acepta pero se guarda normalizado como 'cuotas'.
   const todos = (await GET('/expenses')).data;
-  const sumaGeneral = todos.filter(e => e.fund === 'general').reduce((s, e) => s + e.amount, 0);
-  eq('Suma de gastos del fondo general: app vs libro', sumaGeneral, libro.gastoGeneral);
+  const sumaGeneral = todos.filter(e => e.fund === 'cuotas').reduce((s, e) => s + e.amount, 0);
+  eq('Suma de gastos del fondo de cuotas (ex "general"): app vs libro', sumaGeneral, libro.gastoGeneral);
+  eq('Ningún gasto nuevo queda guardado con el fondo heredado "general"', todos.some(e => e.fund === 'general'), false);
 
-  const enBD = await state.db.collection('expenses').find({ fund: 'general' }).toArray();
-  eq('BD: los gastos generales persistidos suman lo mismo', enBD.reduce((s, e) => s + e.amount, 0), libro.gastoGeneral);
+  const enBD = await state.db.collection('expenses').find({ fund: 'cuotas' }).toArray();
+  eq('BD: los gastos de cuotas persistidos suman lo mismo', enBD.reduce((s, e) => s + e.amount, 0), libro.gastoGeneral);
 
   let r = await POST('/expenses', { category: 'materiales', amount: 5000 });
   eq('Gasto sin descripción se rechaza', r.status, 400);
@@ -169,6 +171,8 @@ async function suiteDescuentos() {
 
   r = await GET('/discounts');
   eq('Total descuentos de cuotas: app vs libro', r.data.totalFromFees, libro.descuentoCuotas);
+  eq('Desglose por fondo: cuotas', r.data.byFund.cuotas, libro.descuentoCuotas);
+  eq('Desglose por fondo: caja chica', r.data.byFund.caja_chica, libro.descuentoCajaChica);
   eq('Total descuentos de caja chica: app vs libro', r.data.totalFromPettyCash, libro.descuentoCajaChica);
   eq('Total general de descuentos', r.data.total, libro.descuentoCuotas + libro.descuentoCajaChica);
 
@@ -207,6 +211,9 @@ async function suiteConsistencia() {
   eq('Saldo general = fondo de cuotas + caja chica', d.balance.total, saldoGeneralEsperado + cajaEsperada);
   eq('El total nunca queda descuadrado respecto de sus partes',
      d.balance.total, d.balance.general + d.balance.pettyCash);
+  eq('El total también es la suma de los tres fondos',
+     d.balance.total, d.funds.reduce((s, f) => s + f.balance, 0));
+  eq('Fondo general = cuotas + actividades', d.balance.general, d.balance.cuotas + d.balance.actividades);
 
   const totalAlumnos = await state.db.collection('students').countDocuments();
   eq('Dashboard: total de alumnos coincide con la BD', d.students.total, totalAlumnos);

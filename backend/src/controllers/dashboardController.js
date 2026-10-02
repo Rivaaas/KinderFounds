@@ -4,6 +4,19 @@ const Student   = require('../models/Student');
 const Discount  = require('../models/Discount');
 const { sum, getPettyCashLedger } = require('../utils/balances');
 const { currentMonthLocal } = require('../utils/constants');
+const { FUND_LABELS, normalizeFund } = require('../utils/funds');
+
+// Fondo al que pertenece un pago según su tipo. Las cuotas mensuales van al
+// fondo de cuotas; los pagos de caja chica, a caja chica; todo lo demás
+// (cuotas de actividad, rifas, aportes voluntarios...) al fondo de actividades.
+const fondoDePago = (p) => {
+  if (p.type === 'cuota_mensual') return 'cuotas';
+  if (p.type === 'caja_chica')    return 'caja_chica';
+  return 'actividades';
+};
+
+// Fondo de un gasto o descuento, traduciendo los valores heredados.
+const fondoDe = (valor) => normalizeFund(valor) || 'cuotas';
 
 exports.getSummary = async (req, res) => {
   const [students, payments, expenses, pettyCash, discounts] = await Promise.all([
@@ -16,20 +29,58 @@ exports.getSummary = async (req, res) => {
 
   const activeStudents = students.filter(s => s.status === 'active').length;
 
-  const monthlyIncome    = payments.filter(p => p.type === 'cuota_mensual').reduce((s, p) => s + p.amount, 0);
-  const activitiesIncome = payments.filter(p => p.type !== 'cuota_mensual' && p.type !== 'caja_chica').reduce((s, p) => s + p.amount, 0);
+  // --- Ingresos por fondo -------------------------------------------------
+  const monthlyIncome    = sum(payments.filter(p => fondoDePago(p) === 'cuotas'));
+  const activitiesIncome = sum(payments.filter(p => fondoDePago(p) === 'actividades'));
 
-  // Cada gasto descuenta del fondo que eligió el usuario al registrarlo.
-  const generalExpenses   = sum(expenses.filter(e => e.fund === 'general'));
-  const pettyCashExpenses = sum(expenses.filter(e => e.fund === 'caja_chica'));
+  // --- Gastos por fondo: cada gasto descuenta del fondo elegido al registrarlo.
+  const expensesCuotas      = sum(expenses.filter(e => fondoDe(e.fund) === 'cuotas'));
+  const expensesActividades = sum(expenses.filter(e => fondoDe(e.fund) === 'actividades'));
 
-  // Descuentos descontados de cuotas mensuales y de caja chica
-  const discountsFromFees      = sum(discounts.filter(d => d.source === 'cuotas_mensuales'));
-  const discountsFromPettyCash = sum(discounts.filter(d => d.source === 'caja_chica'));
+  // --- Descuentos por fondo -----------------------------------------------
+  const discountsCuotas      = sum(discounts.filter(d => fondoDe(d.source) === 'cuotas'));
+  const discountsActividades = sum(discounts.filter(d => fondoDe(d.source) === 'actividades'));
+  const discountsPettyCash   = sum(discounts.filter(d => fondoDe(d.source) === 'caja_chica'));
 
-  // Saldo del fondo general por separado: lo recaudado en cuotas y actividades
-  // menos lo gastado desde ese fondo.
-  const generalBalance = monthlyIncome + activitiesIncome - generalExpenses - discountsFromFees;
+  // --- Caja chica: el saldo viene del libro (fuente única), aquí solo se
+  // desglosa en ingresos / egresos / descuentos para mostrarlo al lado de los
+  // otros fondos. Los egresos son los movimientos de la pantalla Caja Chica
+  // más los gastos cargados a ese fondo; los descuentos van aparte.
+  const pettyCashIncome   = sum(pettyCash.entries.filter(e => e.type === 'income'));
+  // Gastos registrados en la pantalla Gastos con fondo caja chica...
+  const pettyCashExpenses = sum(expenses.filter(e => fondoDe(e.fund) === 'caja_chica'));
+  // ...más los egresos anotados directamente en Caja Chica.
+  const pettyCashMovementsOut = sum(pettyCash.entries.filter(e => e.type === 'expense' && e.origin === 'movement'));
+
+  const balanceCuotas      = monthlyIncome    - expensesCuotas      - discountsCuotas;
+  const balanceActividades = activitiesIncome - expensesActividades - discountsActividades;
+  const balancePettyCash   = pettyCash.currentBalance;
+
+  // Cada fondo se explica con sus propias partes; el total es la suma de los
+  // saldos, no una fórmula aparte, para que nunca quede descuadrado.
+  const funds = [
+    {
+      key: 'cuotas', label: FUND_LABELS.cuotas,
+      income: monthlyIncome, expenses: expensesCuotas, discounts: discountsCuotas, balance: balanceCuotas,
+    },
+    {
+      key: 'actividades', label: FUND_LABELS.actividades,
+      income: activitiesIncome, expenses: expensesActividades, discounts: discountsActividades, balance: balanceActividades,
+    },
+    {
+      key: 'caja_chica', label: FUND_LABELS.caja_chica,
+      initialBalance: pettyCash.initialBalance,
+      income: pettyCashIncome,
+      // Para caja chica, "gastos" son gastos + egresos directos: así el saldo de
+      // la tarjeta se explica con sus propias filas.
+      expenses: pettyCashExpenses + pettyCashMovementsOut,
+      movementsOut: pettyCashMovementsOut,
+      discounts: discountsPettyCash, balance: balancePettyCash,
+    },
+  ];
+
+  const totalDiscounts = discountsCuotas + discountsActividades + discountsPettyCash;
+  const totalBalance   = balanceCuotas + balanceActividades + balancePettyCash;
 
   // El mes se calcula en la zona horaria del curso: con toISOString() el servidor
   // (que corre en UTC) pasaba al mes siguiente a las 21:00 de Chile, y el último
@@ -41,16 +92,39 @@ exports.getSummary = async (req, res) => {
 
   res.json({
     students: { total: students.length, active: activeStudents, inactive: students.length - activeStudents, upToDate: upToDateStudents, debt: debtStudents },
-    income:   { monthly: monthlyIncome, activities: activitiesIncome, total: monthlyIncome + activitiesIncome },
-    expenses: { general: generalExpenses, pettyCash: pettyCashExpenses, total: generalExpenses + pettyCashExpenses },
-    discounts: { fromFees: discountsFromFees, fromPettyCash: discountsFromPettyCash, total: discountsFromFees + discountsFromPettyCash },
+    funds,
+    income: {
+      monthly: monthlyIncome,
+      activities: activitiesIncome,
+      pettyCash: pettyCashIncome,
+      total: monthlyIncome + activitiesIncome,
+    },
+    // Solo registros de la pantalla Gastos (los egresos directos de caja chica
+    // se ven en `funds` y en la pantalla Caja Chica).
+    expenses: {
+      cuotas: expensesCuotas,
+      actividades: expensesActividades,
+      pettyCash: pettyCashExpenses,
+      // `general` conserva su significado histórico: gastos fuera de caja chica.
+      general: expensesCuotas + expensesActividades,
+      total: expensesCuotas + expensesActividades + pettyCashExpenses,
+    },
+    discounts: {
+      cuotas: discountsCuotas,
+      actividades: discountsActividades,
+      pettyCash: discountsPettyCash,
+      fromFees: discountsCuotas,
+      fromActivities: discountsActividades,
+      fromPettyCash: discountsPettyCash,
+      total: totalDiscounts,
+    },
     balance: {
-      general: generalBalance,
-      pettyCash: pettyCash.currentBalance,
-      // Dinero total disponible del curso: la suma de los dos fondos. Se calcula
-      // sumando los saldos, no repitiendo la fórmula, para que no pueda quedar
-      // descuadrado respecto de las partes que se muestran al lado.
-      total: generalBalance + pettyCash.currentBalance,
+      cuotas: balanceCuotas,
+      actividades: balanceActividades,
+      // `general` = cuotas + actividades (lo que antes era el "fondo general").
+      general: balanceCuotas + balanceActividades,
+      pettyCash: balancePettyCash,
+      total: totalBalance,
     },
   });
 };
@@ -83,11 +157,20 @@ exports.getMonthlyChart = async (req, res) => {
 
   const months = Array.from({ length: 12 }, (_, i) => {
     const label = new Date(Date.UTC(year, i, 1)).toLocaleString('es-CL', { month: 'short', timeZone: 'UTC' });
+    const pagos  = payments.filter(p => enMes(p.date, i));
+    const gastos = expenses.filter(e => enMes(e.date, i));
     return {
       month: label,
-      income:   payments.filter(p => enMes(p.date, i)).reduce((s, p) => s + p.amount, 0),
-      expense:  expenses.filter(e => enMes(e.date, i)).reduce((s, e) => s + e.amount, 0),
-      discount: discounts.filter(d => enMes(d.date, i)).reduce((s, d) => s + d.amount, 0),
+      income:   sum(pagos),
+      expense:  sum(gastos),
+      discount: sum(discounts.filter(d => enMes(d.date, i))),
+      // Desglose por fondo para el gráfico del dashboard.
+      incomeCuotas:      sum(pagos.filter(p => fondoDePago(p) === 'cuotas')),
+      incomeActividades: sum(pagos.filter(p => fondoDePago(p) === 'actividades')),
+      incomeCajaChica:   sum(pagos.filter(p => fondoDePago(p) === 'caja_chica')),
+      expenseCuotas:      sum(gastos.filter(e => fondoDe(e.fund) === 'cuotas')),
+      expenseActividades: sum(gastos.filter(e => fondoDe(e.fund) === 'actividades')),
+      expenseCajaChica:   sum(gastos.filter(e => fondoDe(e.fund) === 'caja_chica')),
     };
   });
 
