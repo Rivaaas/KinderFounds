@@ -13,6 +13,7 @@ import Reports     from '../pages/Reports';
 import Statistics  from '../pages/Statistics';
 import Discounts   from '../pages/Discounts';
 import Users       from '../pages/Users';
+import Fines       from '../pages/Fines';
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -50,6 +51,7 @@ export default function AppRouter() {
           <Route path="/expenses"    element={<Expenses />} />
           <Route path="/discounts"   element={<Discounts />} />
           <Route path="/activities"  element={<Activities />} />
+          <Route path="/fines"       element={<Fines />} />
           <Route path="/petty-cash"  element={<PettyCash />} />
           <Route path="/reports"     element={<Reports />} />
           <Route path="/statistics"  element={<Statistics />} />

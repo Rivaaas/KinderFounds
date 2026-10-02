@@ -18,6 +18,7 @@ const ORIGIN_LABELS = {
   payment:  'Pagos',
   expense:  'Gastos',
   discount: 'Descuentos',
+  fine:     'Multas',
 };
 
 export default function PettyCash() {

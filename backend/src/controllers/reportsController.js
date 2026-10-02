@@ -2,6 +2,7 @@ const Payment  = require('../models/Payment');
 const Expense  = require('../models/Expense');
 const Student  = require('../models/Student');
 const Activity = require('../models/Activity');
+const Fine     = require('../models/Fine');
 const { getPettyCashLedger } = require('../utils/balances');
 
 exports.getGeneral = async (req, res) => {
@@ -29,11 +30,16 @@ exports.getByStudent = async (req, res) => {
   const student = await Student.findById(studentId);
   if (!student) return res.status(404).json({ message: 'Estudiante no encontrado.' });
 
-  const payments = await Payment.find({ student: studentId }).sort({ date: -1 });
+  const [payments, fines] = await Promise.all([
+    Payment.find({ student: studentId }).sort({ date: -1 }),
+    Fine.find({ student: studentId, status: { $ne: 'cancelled' } }).sort({ date: -1 }),
+  ]);
   const totalPaid    = payments.filter((p) => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
   const totalPending = payments.filter((p) => p.status === 'pending').reduce((s, p) => s + p.amount, 0);
+  const finesPaid    = fines.filter((f) => f.status === 'paid').reduce((s, f) => s + f.amount, 0);
+  const finesPending = fines.filter((f) => f.status === 'pending').reduce((s, f) => s + f.amount, 0);
 
-  res.json({ student, payments, totalPaid, totalPending });
+  res.json({ student, payments, fines, totalPaid, totalPending, finesPaid, finesPending });
 };
 
 exports.getByMonth = async (req, res) => {

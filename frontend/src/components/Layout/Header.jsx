@@ -9,6 +9,7 @@ const titles = {
   '/expenses':   { label: 'Gastos',          emoji: '📉' },
   '/discounts':  { label: 'Descuentos',      emoji: '🏷️' },
   '/activities': { label: 'Actividades y Cuotas', emoji: '⚡' },
+  '/fines':      { label: 'Multas',          emoji: '⚠️' },
   '/petty-cash': { label: 'Caja Chica',      emoji: '🐷' },
   '/statistics': { label: 'Estadísticas',    emoji: '📊' },
   '/reports':    { label: 'Reportes',        emoji: '📄' },

@@ -10,7 +10,7 @@ import { formatCLP } from '../utils/formatters';
 import { FUNDS, fundByKey } from '../config/funds';
 import { useTheme } from '../context/ThemeContext';
 import {
-  Wallet, TrendingUp, TrendingDown, Tag, UserCheck, UserX, Users, ArrowRight, PiggyBank,
+  Wallet, TrendingUp, TrendingDown, Tag, UserCheck, UserX, Users, ArrowRight, PiggyBank, AlertTriangle,
 } from 'lucide-react';
 
 // Pantalla de cada fondo, para saltar desde su tarjeta.
@@ -146,7 +146,7 @@ export default function Dashboard() {
   if (loading) return <div className="flex items-center justify-center h-64 text-white/40">Cargando dashboard...</div>;
   if (!summary) return null;
 
-  const { students, income, expenses, balance, discounts = {}, funds = [] } = summary;
+  const { students, income, expenses, balance, discounts = {}, funds = [], fines = {} } = summary;
 
   const saldoPorFondo = funds
     .map((f) => ({ name: fundByKey(f.key).label, value: f.balance, color: fundByKey(f.key).color }))
@@ -215,8 +215,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Descuentos y gastos, todos juntos y con su desglose por fondo */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Descuentos, gastos y multas, todos juntos y con su desglose por fondo */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         <BreakdownCard
           title="Descuentos" note="Todos los fondos juntos" to="/discounts"
           icon={Tag} iconClass="bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400"
@@ -228,6 +228,12 @@ export default function Dashboard() {
           icon={TrendingDown} iconClass="bg-red-100 text-kinder-coral dark:bg-red-900/40"
           total={expenses.total ?? 0}
           byFund={{ cuotas: expenses.cuotas, actividades: expenses.actividades, caja_chica: expenses.pettyCash }}
+        />
+        <BreakdownCard
+          title="Multas cobradas" note={`Por cobrar: ${formatCLP(fines.pending || 0)} (${fines.pendingCount || 0})`} to="/fines"
+          icon={AlertTriangle} iconClass="bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400"
+          total={fines.paid || 0}
+          byFund={fines.byFund || {}}
         />
       </div>
 

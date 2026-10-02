@@ -3,6 +3,7 @@ const Expense   = require('../models/Expense');
 const PettyCash = require('../models/PettyCash');
 const Discount  = require('../models/Discount');
 const Settings  = require('../models/Settings');
+const Fine      = require('../models/Fine');
 
 const sum = (rows) => rows.reduce((s, r) => s + (r.amount || 0), 0);
 
@@ -15,6 +16,7 @@ const sum = (rows) => rows.reduce((s, r) => s + (r.amount || 0), 0);
 //   - Caja Chica  → movimiento expense
 //   - Gastos      → gasto con fondo 'caja_chica'
 //   - Descuentos  → descuento con origen 'caja_chica'
+//   + Multas      → multa pagada cuyo dinero entró a 'caja_chica'
 //
 // A eso se suma el saldo inicial configurado: dinero con el que se parte y que no
 // corresponde a ningún movimiento. El saldo nunca se almacena, siempre se calcula:
@@ -31,11 +33,12 @@ const getPettyCashLedger = async (range) => {
 
   // Se leen SIEMPRE todos los movimientos, aunque se pida un rango: el saldo
   // resultante de una fila depende de todo lo anterior, no solo de lo visible.
-  const [movements, payments, expenses, discounts] = await Promise.all([
+  const [movements, payments, expenses, discounts, fines] = await Promise.all([
     PettyCash.find().populate('student', 'name'),
     Payment.find({ type: 'caja_chica', status: 'paid' }).populate('student', 'name'),
     Expense.find({ fund: 'caja_chica' }),
     Discount.find({ source: 'caja_chica' }),
+    Fine.find({ status: 'paid', paidFund: 'caja_chica' }).populate('student', 'name'),
   ]);
 
   const todas = [
@@ -78,6 +81,16 @@ const getPettyCashLedger = async (range) => {
       date: d.date,
       student: null,
       description: d.description,
+    })),
+    ...fines.map((f) => ({
+      _id: f._id,
+      origin: 'fine',
+      editable: false,
+      type: 'income',
+      amount: f.amount,
+      date: f.paidAt || f.date,
+      student: f.student || null,
+      description: f.description ? `Multa: ${f.description}` : 'Pago de multa',
     })),
   ];
 

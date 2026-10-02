@@ -16,6 +16,7 @@ const reportRoutes     = require('./src/routes/reports');
 const discountRoutes   = require('./src/routes/discounts');
 const userRoutes       = require('./src/routes/users');
 const publicRoutes     = require('./src/routes/public');
+const fineRoutes       = require('./src/routes/fines');
 
 // Sin secreto no se pueden firmar ni verificar sesiones. Antes el proceso
 // arrancaba igual y fallaba recién en el primer login, con un error confuso.
@@ -83,6 +84,7 @@ app.use('/api/dashboard',  dashboardRoutes);
 app.use('/api/reports',    reportRoutes);
 app.use('/api/discounts',  discountRoutes);
 app.use('/api/users',      userRoutes);
+app.use('/api/fines',      fineRoutes);
 
 app.use(errorHandler);
 

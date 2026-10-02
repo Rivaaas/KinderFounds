@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, X, Lock, Sun, Moon, Loader2, PiggyBank, Wallet, BarChart3, PartyPopper } from 'lucide-react';
+import { Search, X, Lock, Sun, Moon, Loader2, PiggyBank, Wallet, BarChart3, PartyPopper, AlertTriangle } from 'lucide-react';
 import { publicApi } from '../services/api';
 import Footer from '../components/Layout/Footer';
 import { BuildzBadge, BuildzBanner } from '../components/Brand/Buildz';
 import ActividadesCurso from '../components/Public/ActividadesCurso';
 import { useTheme } from '../context/ThemeContext';
-import { formatCLP } from '../utils/formatters';
+import { formatCLP, formatDate } from '../utils/formatters';
 
 const ESTADOS = {
   al_dia:    { emoji: '🟢', texto: 'Cuenta al día',        clase: 'text-kinder-green', fondo: 'bg-kinder-green/10 border-kinder-green/30' },
@@ -320,6 +320,16 @@ export default function Consulta() {
               />
             )}
 
+            {/* Multas: solo si el alumno tiene alguna vigente. */}
+            {estado.fines?.total > 0 && (
+              <Tarjeta
+                icono={<AlertTriangle size={18} />} titulo="Multas"
+                pagado={estado.fines.paid} total={estado.fines.total}
+                pendiente={estado.fines.pending} excedente={estado.fines.surplus}
+                color="text-kinder-coral" barra="bg-kinder-coral"
+              />
+            )}
+
             {/* Total */}
             <div className={`glass p-6 border-2 ${est.fondo}`}>
               <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400 text-center">
@@ -414,6 +424,36 @@ export default function Consulta() {
                         </span>
                         <span className="flex items-center gap-3 shrink-0">
                           <span className="text-gray-600 dark:text-slate-300 tabular-nums">{formatCLP(p.amount)}</span>
+                          <span className={`flex items-center gap-1 font-medium w-24 justify-end ${e.clase}`}>
+                            <span aria-hidden="true">{e.icono}</span> {e.texto}
+                          </span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
+            {/* Multas, en detalle: monto y motivo */}
+            {estado.fines?.items?.length > 0 && (
+              <div className="glass overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 dark:border-kinder-border">
+                  <h3 className="font-bold text-gray-800 dark:text-white">Detalle de multas</h3>
+                </div>
+                <ul className="divide-y divide-gray-50 dark:divide-kinder-border">
+                  {estado.fines.items.map((f, i) => {
+                    const e = ESTADO_CUOTA[f.status] || ESTADO_CUOTA.pending;
+                    return (
+                      <li key={i} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                        <span className="text-gray-700 dark:text-slate-200 min-w-0">
+                          <span className="block">{f.reasonLabel}</span>
+                          <span className="text-xs text-gray-400 block">
+                            {formatDate(f.date)}{f.description ? ` · ${f.description}` : ''}
+                          </span>
+                        </span>
+                        <span className="flex items-center gap-3 shrink-0">
+                          <span className="text-gray-600 dark:text-slate-300 tabular-nums">{formatCLP(f.amount)}</span>
                           <span className={`flex items-center gap-1 font-medium w-24 justify-end ${e.clase}`}>
                             <span aria-hidden="true">{e.icono}</span> {e.texto}
                           </span>

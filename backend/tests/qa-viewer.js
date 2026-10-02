@@ -32,6 +32,11 @@ const ESCRITURAS = [
   ['POST',   '/discounts',                         {}],
   ['PUT',    `/discounts/${ID_INEXISTENTE}`,       {}],
   ['DELETE', `/discounts/${ID_INEXISTENTE}`,       null],
+  ['POST',   '/fines',                             {}],
+  ['PUT',    `/fines/${ID_INEXISTENTE}`,           {}],
+  ['PUT',    `/fines/${ID_INEXISTENTE}/pay`,       {}],
+  ['PUT',    `/fines/${ID_INEXISTENTE}/unpay`,     {}],
+  ['DELETE', `/fines/${ID_INEXISTENTE}`,           null],
   ['POST',   '/activities',                        {}],
   ['PUT',    `/activities/${ID_INEXISTENTE}`,      {}],
   ['DELETE', `/activities/${ID_INEXISTENTE}`,      null],
@@ -44,7 +49,7 @@ const ESCRITURAS = [
 // Todo lo que un viewer sí debe poder consultar.
 const LECTURAS = [
   '/auth/me', '/students', '/payments', '/expenses', '/petty-cash',
-  '/discounts', '/activities', '/dashboard/summary', '/dashboard/chart/monthly',
+  '/discounts', '/fines', '/activities', '/dashboard/summary', '/dashboard/chart/monthly',
   '/reports/general', '/reports/petty-cash', '/petty-cash/initial-balance',
 ];
 

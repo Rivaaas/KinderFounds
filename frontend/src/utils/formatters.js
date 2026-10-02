@@ -57,3 +57,10 @@ export const ACTIVITY_TYPE_LABELS = {
 export const STATUS_LABELS = { paid: 'Pagado', pending: 'Pendiente', cancelled: 'Anulado' };
 // Etiquetas de fondo; los valores heredados ('general', 'cuotas_mensuales') eran el fondo de cuotas.
 export const FUND_LABELS   = { cuotas: 'Cuotas Mensuales', actividades: 'Actividades', caja_chica: 'Caja Chica', general: 'Cuotas Mensuales', cuotas_mensuales: 'Cuotas Mensuales' };
+
+export const FINE_REASON_LABELS = {
+  inasistencia_actividad: 'Inasistencia a actividad',
+  turno_tarea:            'No cumplir turno/tarea',
+  dano_material:          'Daño de material',
+  otro:                   'Otro',
+};

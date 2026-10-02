@@ -2,6 +2,8 @@ const Student   = require('../models/Student');
 const Payment   = require('../models/Payment');
 const PettyCash = require('../models/PettyCash');
 const Activity  = require('../models/Activity');
+const Fine      = require('../models/Fine');
+const { FINE_REASON_LABELS } = require('./fineController');
 const { _construirNomina: construirNomina } = require('./activityController');
 const { isValidId } = require('../utils/validation');
 
@@ -88,11 +90,14 @@ exports.getStatement = async (req, res) => {
   const student = await Student.findById(id).select('name status');
   if (!student) return res.status(404).json({ message: 'No encontramos un estudiante con ese nombre.' });
 
-  const [pagos, movimientos] = await Promise.all([
+  const [pagos, movimientos, multas] = await Promise.all([
     Payment.find({ student: id }).select('type amount status month date description').sort({ month: 1, date: 1 }),
     // La caja chica puede haberse registrado como movimiento desde la pantalla
     // Caja Chica, no solo como pago: se suman ambas fuentes para no subestimar.
     PettyCash.find({ student: id, type: 'income' }).select('amount date'),
+    // Multas: se muestran con monto y motivo (decisión de la tesorería). Las
+    // anuladas no se cobran y no se informan.
+    Fine.find({ student: id, status: { $ne: 'cancelled' } }).select('reason description amount status date paidAt').sort({ date: 1 }),
   ]);
 
   const cuotas    = pagos.filter((p) => p.type === 'cuota_mensual');
@@ -104,11 +109,12 @@ exports.getStatement = async (req, res) => {
   const tCuotas = totales(cuotas);
   const tCaja   = totales(cajaPagos, movimientosCaja);
   const tOtros  = totales(otros);
+  const tMultas = totales(multas);
 
-  // El total exigido incluye los otros aportes si existen, para que "pagado" y
-  // "pendiente" describan la situación completa del alumno y no una parte.
-  const total   = tCuotas.total + tCaja.total + tOtros.total;
-  const pagado  = tCuotas.paid + tCaja.paid + tOtros.paid;
+  // El total exigido incluye los otros aportes y las multas si existen, para
+  // que "pagado" y "pendiente" describan la situación completa del alumno.
+  const total   = tCuotas.total + tCaja.total + tOtros.total + tMultas.total;
+  const pagado  = tCuotas.paid + tCaja.paid + tOtros.paid + tMultas.paid;
   const pendiente = Math.max(0, total - pagado);
 
   let estado = 'al_dia';
@@ -141,6 +147,19 @@ exports.getStatement = async (req, res) => {
         amount: p.amount,
         status: p.status,
         date: p.date,
+      })),
+    },
+    fines: {
+      ...tMultas,
+      count: multas.length,
+      items: multas.map((f) => ({
+        reason: f.reason,
+        reasonLabel: FINE_REASON_LABELS[f.reason] || f.reason,
+        description: f.description || '',
+        amount: f.amount,
+        status: f.status,
+        date: f.date,
+        paidAt: f.paidAt || null,
       })),
     },
     summary: { total, paid: pagado, pending: pendiente, surplus: Math.max(0, pagado - total), estado },
